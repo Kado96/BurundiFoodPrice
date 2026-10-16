@@ -63,7 +63,14 @@ function ProduitsPage() {
     <Page>
       <PageTitle title={t("priceTrackingTitle")} sub={t("priceTrackingSub")}>
         <div className="flex flex-wrap gap-2">
-          <select value={productId} onChange={(e) => setProductId(e.target.value)} className="h-10 rounded-md border bg-card px-2 text-sm">
+          <select
+            id="products-product-selector"
+            name="selected_product"
+            aria-label={t("productLabel")}
+            value={productId}
+            onChange={(e) => setProductId(e.target.value)}
+            className="h-10 rounded-md border bg-card px-2 text-sm shadow-xs"
+          >
             {d?.products.map((p) => <option key={p.id} value={p.id}>{tp(p.name)}</option>)}
           </select>
           <div className="flex rounded-md border bg-card p-0.5">

@@ -48,7 +48,14 @@ function ComparaisonPage() {
   return (
     <Page>
       <PageTitle title={t("comparisonTitle")} sub={t("comparisonSub")}>
-        <select value={productId} onChange={(e) => setProductId(e.target.value)} className="h-10 rounded-md border bg-card px-2 text-sm">
+        <select
+          id="compare-product-select"
+          name="compare_product"
+          aria-label={t("productLabel")}
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          className="h-10 rounded-md border bg-card px-2 text-sm shadow-xs"
+        >
           {d?.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </PageTitle>

@@ -38,11 +38,25 @@ function CartePage() {
     <Page>
       <PageTitle title={t("mapPageTitle")} sub={t("mapPageSub")}>
         <div className="flex flex-wrap gap-2">
-          <select value={prov} onChange={(e) => setProv(e.target.value)} className="h-10 rounded-md border bg-card px-2 text-sm">
+          <select
+            id="map-province-filter"
+            name="map_province"
+            aria-label={t("province")}
+            value={prov}
+            onChange={(e) => setProv(e.target.value)}
+            className="h-10 rounded-md border bg-card px-2 text-sm shadow-xs"
+          >
             <option value="">{t("allProvinces")}</option>
             {d?.provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <select value={product} onChange={(e) => setProduct(e.target.value)} className="h-10 rounded-md border bg-card px-2 text-sm">
+          <select
+            id="map-product-filter"
+            name="map_product"
+            aria-label={t("productLabel")}
+            value={product}
+            onChange={(e) => setProduct(e.target.value)}
+            className="h-10 rounded-md border bg-card px-2 text-sm shadow-xs"
+          >
             <option value="">{t("allProducts")}</option>
             {d?.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>

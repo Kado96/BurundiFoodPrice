@@ -41,8 +41,14 @@ export function SiteHeader() {
         </Link>
         <nav className="ml-4 hidden items-center gap-1 lg:flex">{links}</nav>
         <div className="ml-auto flex items-center gap-2">
-          <select aria-label="Langue" value={lang} onChange={(e) => setLang(e.target.value as Lang)}
-            className="h-9 rounded-md border bg-card px-2 text-sm">
+          <select
+            id="site-language-selector"
+            name="site_language"
+            aria-label="Langue"
+            value={lang}
+            onChange={(e) => setLang(e.target.value as Lang)}
+            className="h-9 rounded-md border bg-card px-2 text-sm shadow-xs"
+          >
             <option value="fr">FR</option><option value="rn">RN</option><option value="en">EN</option>
           </select>
           {user ? (

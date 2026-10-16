@@ -39,11 +39,26 @@ function MarchesPage() {
     <Page>
       <PageTitle title={t("marketsListTitle")} sub={`${list.length} — ${t("marketsListSub")}`}>
         <div className="flex flex-wrap gap-2">
-          <label className="relative">
+          <label htmlFor="markets-search-input" className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} className="h-10 rounded-md border bg-card pl-8 pr-2 text-sm" />
+            <input
+              id="markets-search-input"
+              name="market_search"
+              autoComplete="off"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("search")}
+              className="h-10 rounded-md border bg-card pl-8 pr-2 text-sm shadow-xs"
+            />
           </label>
-          <select value={prov} onChange={(e) => setProv(e.target.value)} className="h-10 rounded-md border bg-card px-2 text-sm">
+          <select
+            id="markets-province-filter"
+            name="markets_province"
+            aria-label={t("province")}
+            value={prov}
+            onChange={(e) => setProv(e.target.value)}
+            className="h-10 rounded-md border bg-card px-2 text-sm shadow-xs"
+          >
             <option value="">{t("allProvinces")}</option>
             {d?.provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>

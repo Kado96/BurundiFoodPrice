@@ -63,13 +63,27 @@ function Home() {
             <p className="mt-4 max-w-lg text-lg text-muted-foreground">
               {t("heroSub")}
             </p>
-            <div className="mt-6 flex flex-col gap-2 rounded-lg border bg-card p-3 sm:flex-row">
-              <label className="flex flex-1 items-center gap-2 px-2">
+            <div className="mt-6 flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-xs sm:flex-row">
+              <label htmlFor="home-product-search" className="flex flex-1 items-center gap-2 px-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <input value={qs} onChange={(e) => setQs(e.target.value)} placeholder={t("searchPlaceholder")}
-                  className="h-10 w-full bg-transparent outline-none" />
+                <input
+                  id="home-product-search"
+                  name="product_search"
+                  autoComplete="off"
+                  value={qs}
+                  onChange={(e) => setQs(e.target.value)}
+                  placeholder={t("searchPlaceholder")}
+                  className="h-10 w-full bg-transparent outline-none"
+                />
               </label>
-              <select value={market} onChange={(e) => setMarket(e.target.value)} className="h-10 rounded-md border bg-background px-2 text-sm">
+              <select
+                id="home-market-select"
+                name="market_filter"
+                aria-label={t("market")}
+                value={market}
+                onChange={(e) => setMarket(e.target.value)}
+                className="h-10 rounded-md border bg-background px-2 text-sm"
+              >
                 <option value="">{t("allMarkets")}</option>
                 {d?.markets.map((m) => <option key={m.id} value={m.id}>{tm(m.name)}</option>)}
               </select>
