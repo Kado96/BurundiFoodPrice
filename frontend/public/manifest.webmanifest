@@ -1,0 +1,12 @@
+{
+  "name": "Burundi Food Price — Collecte",
+  "short_name": "BFP Agent",
+  "start_url": "/agent",
+  "display": "standalone",
+  "background_color": "#f8f5ee",
+  "theme_color": "#1f5132",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
