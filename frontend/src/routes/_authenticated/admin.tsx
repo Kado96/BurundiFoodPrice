@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BarChart3, CheckSquare, Download, Package, Store, Users } from "lucide-react";
+import { BarChart3, CheckSquare, Database, Download, Package, Store, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Page, PageTitle } from "@/components/bits";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { Agents } from "@/components/admin/Agents";
 import { AgentTracking } from "@/components/admin/AgentTracking";
 import { Markets, Products } from "@/components/admin/Catalog";
 import { ExportPanel } from "@/components/admin/ExportPanel";
+import { DataManagement } from "@/components/admin/DataManagement";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 const TABS = [
   { k: "dash", l: "Tableau de bord", i: BarChart3 },
   { k: "valid", l: "Validation", i: CheckSquare },
+  { k: "data", l: "Collectes & Données", i: Database },
   { k: "tracking", l: "Suivi des agents", i: Users },
   { k: "agents", l: "Utilisateurs", i: Users },
   { k: "markets", l: "Marchés", i: Store },
@@ -59,6 +61,7 @@ function AdminPage() {
       </div>
       {tab === "dash" && <Dashboard onGoValidate={() => setTab("valid")} />}
       {tab === "valid" && <Validation />}
+      {tab === "data" && <DataManagement />}
       {tab === "tracking" && <AgentTracking />}
       {tab === "agents" && isAdmin && <Agents />}
       {tab === "markets" && isAdmin && <Markets />}
