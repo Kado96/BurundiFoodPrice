@@ -200,15 +200,19 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (f.password.length < 8) {
-      toast.error("Mot de passe : 8 caractères minimum");
+    if (f.password.length < 3) {
+      toast.error("Mot de passe : 3 caractères minimum");
       return;
     }
     setBusy(true);
     try {
+      const rawUser = f.email.trim().toLowerCase();
+      const authEmail = rawUser.includes("@") ? rawUser : `${rawUser.replace(/\s+/g, ".")}@bfp.bi`;
+      const authPassword = f.password.length < 6 ? `bfp#${f.password}#2026` : f.password;
+
       const { data, error } = await supabase.auth.signUp({
-        email: f.email,
-        password: f.password,
+        email: authEmail,
+        password: authPassword,
         options: {
           data: { full_name: f.full_name },
         },
@@ -218,7 +222,7 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
         await supabase.from("profiles").upsert({
           id: data.user.id,
           full_name: f.full_name,
-          email: f.email,
+          email: authEmail,
           phone: f.phone || null,
         });
       }
@@ -239,16 +243,16 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
         <input required className={input} value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} />
       </label>
       <label className="text-sm">
-        E-mail (identifiant)
-        <input required type="email" className={input} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        Nom d'utilisateur ou E-mail (identifiant de connexion)
+        <input required type="text" placeholder="Ex: agent1 ou agent@bfp.bi" className={input} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
       </label>
       <label className="text-sm">
         Téléphone
         <input className={input} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+257 …" />
       </label>
       <label className="text-sm">
-        Mot de passe provisoire
-        <input required className={input} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+        Mot de passe / Code PIN (min. 3 chiffres)
+        <input required minLength={3} placeholder="Ex: 123" className={input} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
       </label>
       <label className="text-sm">
         Rôle

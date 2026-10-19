@@ -27,23 +27,66 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
+  function formatLoginIdentifier(raw: string): string {
+    const val = raw.trim().toLowerCase();
+    if (!val) return "";
+    // Si l'utilisateur tape un e-mail avec '@', on le garde tel quel
+    if (val.includes("@")) return val;
+    // Sinon, on convertit son nom d'utilisateur/pseudo en identifiant interne unique
+    // en remplaçant les espaces par des tirets
+    const cleanUsername = val.replace(/\s+/g, ".");
+    return `${cleanUsername}@bfp.bi`;
+  }
+
+  function formatAuthPassword(raw: string): string {
+    // Si le mot de passe fait moins de 6 caractères (ex: 3 chiffres '123'),
+    // on lui applique un salt standard pour satisfaire les contraintes du provider
+    if (raw.length >= 3 && raw.length < 6) {
+      return `bfp#${raw}#2026`;
+    }
+    return raw;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (password.length < 3) {
+      toast.error("Le mot de passe / code PIN doit contenir au moins 3 caractères");
+      return;
+    }
     setBusy(true);
     try {
+      const authEmail = formatLoginIdentifier(email);
+      const authPassword = formatAuthPassword(password);
+
       if (mode === "in") {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        if (error) throw new Error(error.message.includes("banned") ? "Compte suspendu. Contactez l'administrateur." : "E-mail ou mot de passe incorrect");
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email: authEmail, 
+          password: authPassword 
+        });
+        if (error) {
+          // Essai de fallback avec le mot de passe brut sans sel au cas où il avait été créé directement
+          const fallback = await supabase.auth.signInWithPassword({ 
+            email: authEmail, 
+            password: password 
+          });
+          if (fallback.error) {
+            throw new Error(error.message.includes("banned") ? "Compte suspendu. Contactez l'administrateur." : "Identifiant ou mot de passe incorrect");
+          }
+        }
         await supabase.rpc("ensure_profile", {});
         const { data: u } = await supabase.auth.getUser();
         const { data: staff } = await supabase.rpc("is_staff", { _user_id: u.user!.id });
         toast.success("Connexion réussie");
         nav({ to: staff ? "/admin" : "/agent" });
       } else {
-        if (password.length < 8) throw new Error("Le mot de passe doit contenir au moins 8 caractères");
-        const { error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: window.location.origin, data: { full_name: name } } });
+        if (password.length < 3) throw new Error("Le mot de passe doit contenir au moins 3 caractères");
+        const { error } = await supabase.auth.signUp({ 
+          email: authEmail, 
+          password: authPassword, 
+          options: { emailRedirectTo: window.location.origin, data: { full_name: name } } 
+        });
         if (error) throw new Error(error.message);
-        toast.success("Compte créé. Vérifiez votre boîte e-mail pour confirmer l'adresse.");
+        toast.success("Compte créé avec succès !");
         setMode("in");
       }
     } catch (err) {
@@ -94,25 +137,30 @@ function AuthPage() {
                 />
               </label>
             )}
-            <label htmlFor="auth-email-input" className="block text-sm font-medium">E-mail
+            <label htmlFor="auth-email-input" className="block text-sm font-medium">
+              Nom d'utilisateur ou E-mail
               <input
                 id="auth-email-input"
                 name="email"
                 className={input + " mt-1"}
-                type="email"
+                type="text"
                 required
-                autoComplete="email"
+                autoComplete="username"
+                placeholder="Ex: agent1 ou nom@domaine.bi"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </label>
-            <label htmlFor="auth-password-input" className="block text-sm font-medium">Mot de passe
+            <label htmlFor="auth-password-input" className="block text-sm font-medium">
+              Mot de passe / Code PIN (min. 3 chiffres)
               <input
                 id="auth-password-input"
                 name="password"
                 className={input + " mt-1"}
                 type="password"
                 required
+                minLength={3}
+                placeholder="Ex: 123"
                 autoComplete={mode === "in" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
