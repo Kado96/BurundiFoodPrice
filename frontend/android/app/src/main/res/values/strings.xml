@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Burundi Food Price</string>
+    <string name="title_activity_main">Burundi Food Price</string>
+    <string name="package_name">bi.bfp.burundifoodprice</string>
+    <string name="custom_url_scheme">bi.bfp.burundifoodprice</string>
+</resources>
