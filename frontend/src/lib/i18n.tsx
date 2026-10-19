@@ -47,6 +47,16 @@ export const dict = {
   noResults: { fr: "Aucun prix trouvé.", rn: "Nta giciro cabonetse.", en: "No price found." },
   recordedOn: { fr: "Relevé le", rn: "Vyafashwe kuwa", en: "Recorded on" },
   allDays: { fr: "Tous les jours", rn: "Imisi yose", en: "Every day" },
+  goToPublicWeb: {
+    fr: "Accéder à l'observatoire public des prix",
+    rn: "Kwinjira ku rubuga rusanzwe rw'ibiciro",
+    en: "Access public price observatory",
+  },
+  mobileAgentNotice: {
+    fr: "Espace réservé aux agents de terrain et administrateurs",
+    rn: "Ahagenewe abakozi bo mu kibuga n'abakuru gusa",
+    en: "Dedicated to field agents and administrators",
+  },
 
   // Jours de la semaine
   monday: { fr: "Lundi", rn: "Kuwa mbere", en: "Monday" },

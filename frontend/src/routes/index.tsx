@@ -1,10 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, MapPin, Search } from "lucide-react";
 import { useLatest, useRef, fbu, pct, fmtDate } from "@/lib/data";
 import { Avail, Delta, Page, Stat } from "@/components/bits";
 import { LazyMap } from "@/components/LazyMap";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
+import { isMobilePlatform, hasOptedForPublicWeb } from "@/lib/mobile";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,6 +24,25 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const { t, tm, tp } = useI18n();
+  const navigate = useNavigate();
+  const { user, ready, roles, isStaff } = useAuth();
+
+  // Redirection automatique sur Mobile / Android
+  useEffect(() => {
+    if (!ready) return;
+    if (isMobilePlatform() && !hasOptedForPublicWeb()) {
+      if (!user) {
+        // Non connecté sur mobile -> page d'atterrissage identifiants
+        navigate({ to: "/auth" });
+      } else if (isStaff) {
+        // Staff/Admin déjà connecté sur mobile -> tableau de bord admin
+        navigate({ to: "/admin" });
+      } else {
+        // Agent de collecte déjà connecté sur mobile -> interface directe de collecte
+        navigate({ to: "/agent" });
+      }
+    }
+  }, [ready, user, roles, isStaff, navigate]);
   const ref = useRef();
   const latest = useLatest();
   const [qs, setQs] = useState("");
