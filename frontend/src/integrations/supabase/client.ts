@@ -25,9 +25,9 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-// Configuration publique par défaut du projet
-const DEFAULT_SUPABASE_URL = "https://c--51f9a6a0-bf12-40c4-abde-ce98fdb61d4d-prod.lovable.cloud";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_EO7LBwitaGowOwHidXF-yA_jROrCFWK";
+// Configuration publique directe du projet Supabase
+const DEFAULT_SUPABASE_URL = "https://jvjxrknwbnsvgnobbfwa.supabase.co";
+const DEFAULT_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 
 function createSupabaseClient() {
   const SUPABASE_URL =
