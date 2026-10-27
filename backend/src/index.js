@@ -7,7 +7,14 @@ const app = express();
 const port = Number(process.env.PORT) || 4000;
 
 // Comme Kora Agency : FRONTEND_URL + CORS_ORIGIN (virgules OK)
-const allowed = [process.env.FRONTEND_URL, process.env.CORS_ORIGIN, "http://localhost:3001", "http://localhost:3000"]
+// Prod Vercel en fallback si les env Render ne sont pas encore renseignées
+const allowed = [
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN,
+  "https://burundi-food-price.vercel.app",
+  "http://localhost:3001",
+  "http://localhost:3000",
+]
   .filter(Boolean)
   .flatMap((v) => String(v).split(","))
   .map((s) => s.trim())
