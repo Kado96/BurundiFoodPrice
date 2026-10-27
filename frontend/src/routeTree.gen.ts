@@ -21,6 +21,8 @@ import { Route as StatistiquesRouteImport } from './routes/statistiques'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as MarchesIndexRouteImport } from './routes/marches/index'
 import { Route as MarchesIdRouteImport } from './routes/marches/$id'
+import { Route as ApiAdminSplatRouteImport } from './routes/api/admin/$'
+import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiPublicV1SplatRouteImport } from './routes/api/public/v1/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -82,6 +84,16 @@ const MarchesIdRoute = MarchesIdRouteImport.update({
   path: '/marches/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminSplatRoute = ApiAdminSplatRouteImport.update({
+  id: '/api/admin/$',
+  path: '/api/admin/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
+  id: '/api/admin/users',
+  path: '/api/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicV1SplatRoute = ApiPublicV1SplatRouteImport.update({
   id: '/api/public/v1/$',
   path: '/api/public/v1/$',
@@ -100,6 +112,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/marches/$id': typeof MarchesIdRoute
   '/marches/': typeof MarchesIndexRoute
+  '/api/admin/$': typeof ApiAdminSplatRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
   '/api/public/v1/$': typeof ApiPublicV1SplatRoute
 }
 export interface FileRoutesByTo {
@@ -114,6 +128,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/marches/$id': typeof MarchesIdRoute
   '/marches': typeof MarchesIndexRoute
+  '/api/admin/$': typeof ApiAdminSplatRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
   '/api/public/v1/$': typeof ApiPublicV1SplatRoute
 }
 export interface FileRoutesById {
@@ -130,6 +146,8 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/marches/$id': typeof MarchesIdRoute
   '/marches/': typeof MarchesIndexRoute
+  '/api/admin/$': typeof ApiAdminSplatRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
   '/api/public/v1/$': typeof ApiPublicV1SplatRoute
 }
 export interface FileRouteTypes {
@@ -146,6 +164,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/marches/$id'
     | '/marches/'
+    | '/api/admin/$'
+    | '/api/admin/users'
     | '/api/public/v1/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -160,6 +180,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/marches/$id'
     | '/marches'
+    | '/api/admin/$'
+    | '/api/admin/users'
     | '/api/public/v1/$'
   id:
     | '__root__'
@@ -175,6 +197,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/marches/$id'
     | '/marches/'
+    | '/api/admin/$'
+    | '/api/admin/users'
     | '/api/public/v1/$'
   fileRoutesById: FileRoutesById
 }
@@ -190,6 +214,8 @@ export interface RootRouteChildren {
   StatistiquesRoute: typeof StatistiquesRoute
   MarchesIdRoute: typeof MarchesIdRoute
   MarchesIndexRoute: typeof MarchesIndexRoute
+  ApiAdminSplatRoute: typeof ApiAdminSplatRoute
+  ApiAdminUsersRoute: typeof ApiAdminUsersRoute
   ApiPublicV1SplatRoute: typeof ApiPublicV1SplatRoute
 }
 
@@ -279,6 +305,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarchesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/$': {
+      id: '/api/admin/$'
+      path: '/api/admin/$'
+      fullPath: '/api/admin/$'
+      preLoaderRoute: typeof ApiAdminSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/users': {
+      id: '/api/admin/users'
+      path: '/api/admin/users'
+      fullPath: '/api/admin/users'
+      preLoaderRoute: typeof ApiAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/v1/$': {
       id: '/api/public/v1/$'
       path: '/api/public/v1/$'
@@ -312,6 +352,8 @@ const rootRouteChildren: RootRouteChildren = {
   StatistiquesRoute: StatistiquesRoute,
   MarchesIdRoute: MarchesIdRoute,
   MarchesIndexRoute: MarchesIndexRoute,
+  ApiAdminSplatRoute: ApiAdminSplatRoute,
+  ApiAdminUsersRoute: ApiAdminUsersRoute,
   ApiPublicV1SplatRoute: ApiPublicV1SplatRoute,
 }
 export const routeTree = rootRouteImport
