@@ -1,0 +1,49 @@
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import adminRoutes from "./routes/admin.js";
+
+const app = express();
+const port = Number(process.env.PORT) || 4000;
+
+const allowed = (process.env.CORS_ORIGIN || "http://localhost:3001")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin || allowed.includes("*") || allowed.includes(origin)) {
+        return cb(null, true);
+      }
+      return cb(new Error(`CORS bloqué pour ${origin}`));
+    },
+    credentials: true,
+  }),
+);
+app.use(express.json({ limit: "2mb" }));
+
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Burundi Food Price API",
+    status: "ok",
+    supabase: process.env.SUPABASE_URL || null,
+  });
+});
+
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() });
+});
+
+app.use("/api/admin", adminRoutes);
+
+app.use((err, _req, res, _next) => {
+  console.error("[error]", err);
+  res.status(500).json({ error: err.message || "Erreur serveur" });
+});
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`[bfp-api] listening on 0.0.0.0:${port}`);
+  console.log(`[bfp-api] supabase=${process.env.SUPABASE_URL || "(missing)"}`);
+});
