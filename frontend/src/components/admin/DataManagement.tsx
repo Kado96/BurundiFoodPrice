@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRef, fbu, fmtDate } from "@/lib/data";
+import { adminDeleteObservations } from "@/lib/adminApi";
 import { Avail } from "@/components/bits";
 
 interface ObservationRecord {
@@ -152,8 +153,7 @@ export function DataManagement() {
     if (!window.confirm("Confirmer la suppression définitive de ce relevé de prix ?")) return;
 
     try {
-      const { error } = await supabase.from("observations").delete().eq("id", id);
-      if (error) throw error;
+      await adminDeleteObservations({ mode: "single", id });
       toast.success("Relevé supprimé avec succès");
       qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });
       qc.invalidateQueries({ queryKey: ["admin-obs"] });
@@ -170,27 +170,21 @@ export function DataManagement() {
     }
     setIsDeleting(true);
     try {
-      let q = supabase.from("observations").delete();
-      
-      // On applique exactement les mêmes filtres sélectionnés
-      if (agentFilter !== "all") q = q.eq("agent_id", agentFilter);
-      if (dateFrom) q = q.gte("observed_at", dateFrom);
-      if (dateTo) q = q.lte("observed_at", dateTo + "T23:59:59");
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (marketFilter !== "all") q = q.eq("market_id", marketFilter);
-      if (productFilter !== "all") q = q.eq("product_id", productFilter);
-
-      // Sécurité : au moins un filtre de date ou d'agent ou de statut doit être appliqué pour le batch
       if (agentFilter === "all" && !dateFrom && !dateTo && statusFilter === "all" && marketFilter === "all" && productFilter === "all") {
         toast.error("Veuillez sélectionner au moins un filtre ou utiliser 'Supprimer toutes les collectes'");
         setIsDeleting(false);
         setConfirmDeleteBatch(false);
         return;
       }
-
-      const { error } = await q;
-      if (error) throw error;
-
+      await adminDeleteObservations({
+        mode: "batch",
+        agent_id: agentFilter !== "all" ? agentFilter : undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        market_id: marketFilter !== "all" ? marketFilter : undefined,
+        product_id: productFilter !== "all" ? productFilter : undefined,
+      });
       toast.success("Collectes filtrées supprimées avec succès");
       setConfirmDeleteBatch(false);
       qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });
@@ -210,10 +204,7 @@ export function DataManagement() {
     }
     setIsDeleting(true);
     try {
-      // Suppression de tous les enregistrements
-      const { error } = await supabase.from("observations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      if (error) throw error;
-
+      await adminDeleteObservations({ mode: "all" });
       toast.success("Toutes les collectes ont été supprimées");
       setConfirmDeleteAll(false);
       qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });

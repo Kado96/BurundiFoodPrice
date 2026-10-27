@@ -5,6 +5,7 @@ import { KeyRound, Plus, ShieldOff, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRef, fmtDate } from "@/lib/data";
+import { adminCreateUser, adminResetPassword, adminSetSuspended, adminListUserStatus } from "@/lib/adminApi";
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: "Super admin",
@@ -24,17 +25,19 @@ export function Agents() {
   const users = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const [p, r, a] = await Promise.all([
+      const [p, r, a, status] = await Promise.all([
         supabase.from("profiles").select("*").order("full_name"),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("agent_markets").select("agent_id, market_id"),
+        adminListUserStatus().catch(() => [] as { id: string; last_sign_in_at: string | null; suspended: boolean }[]),
       ]);
+      const statusMap = Object.fromEntries((status ?? []).map((s) => [s.id, s]));
       return (p.data ?? []).map((u) => ({
         ...u,
         roles: (r.data ?? []).filter((x) => x.user_id === u.id).map((x) => x.role as string),
         markets: (a.data ?? []).filter((x) => x.agent_id === u.id).map((x) => x.market_id),
-        last: (u as any).last_sign_in_at as string | null,
-        suspended: !!(u as any).suspended,
+        last: statusMap[u.id]?.last_sign_in_at ?? null,
+        suspended: !!statusMap[u.id]?.suspended,
       }));
     },
   });
@@ -43,18 +46,28 @@ export function Agents() {
   const reload = () => qc.invalidateQueries({ queryKey: ["admin-users"] });
 
   async function reset(id: string) {
-    const pw = window.prompt("Nouveau mot de passe (8 caractères minimum) :");
+    const pw = window.prompt("Nouveau mot de passe / PIN (min. 3) :");
     if (!pw) return;
-    if (pw.length < 8) {
-      toast.error("8 caractères minimum");
+    if (pw.length < 3) {
+      toast.error("3 caractères minimum");
       return;
     }
-    toast.info("Fonction de réinitialisation disponible via Supabase Auth Admin");
+    try {
+      await adminResetPassword(id, pw);
+      toast.success("Mot de passe mis à jour");
+    } catch (err) {
+      toast.error((err as Error).message || "Échec");
+    }
   }
 
   async function suspend(id: string, s: boolean) {
-    toast.info(s ? "Compte suspendu" : "Compte réactivé");
-    reload();
+    try {
+      await adminSetSuspended(id, s);
+      toast.success(s ? "Compte suspendu" : "Compte réactivé");
+      reload();
+    } catch (err) {
+      toast.error((err as Error).message || "Échec");
+    }
   }
 
   return (
@@ -206,27 +219,15 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
     }
     setBusy(true);
     try {
-      const rawUser = f.email.trim().toLowerCase();
-      const authEmail = rawUser.includes("@") ? rawUser : `${rawUser.replace(/\s+/g, ".")}@bfp.bi`;
-      const authPassword = f.password.length < 6 ? `bfp#${f.password}#2026` : f.password;
-
-      const { data, error } = await supabase.auth.signUp({
-        email: authEmail,
-        password: authPassword,
-        options: {
-          data: { full_name: f.full_name },
-        },
+      const created = await adminCreateUser({
+        full_name: f.full_name,
+        email: f.email,
+        phone: f.phone || null,
+        password: f.password,
+        role: f.role,
+        market_ids: f.market_ids,
       });
-      if (error) throw error;
-      if (data.user) {
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          full_name: f.full_name,
-          email: authEmail,
-          phone: f.phone || null,
-        });
-      }
-      toast.success(`Compte créé pour ${f.full_name}`);
+      toast.success(`Compte créé pour ${f.full_name} (${created.email || created.id})`);
       onDone();
     } catch (err) {
       toast.error((err as Error).message || "Création impossible");

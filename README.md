@@ -1,29 +1,66 @@
-# Welcome to your Lovable project
+# Burundi Food Price
 
-This project was built with [Lovable](https://lovable.dev).
+Même split que tes autres apps (ex. Kaspersky / Kora) :
 
-## Build with Lovable
+| Couche | Hébergeur | Dossier |
+|--------|-----------|---------|
+| Frontend | **Vercel** | `frontend/` |
+| API / serveur | **Render** | `backend/` |
+| DB / Auth / Storage | **Supabase** | projet `jvjxrknwbnsvgnobbfwa` |
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Repo : https://github.com/Kado96/BurundiFoodPrice
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+---
 
-## Development
+## 1) Render (API)
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Settings du Web Service :
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+| Champ | Valeur |
+|--------|--------|
+| Root Directory | `backend` |
+| Build Command | `npm install` |
+| Start Command | `npm start` |
+
+Environment Variables :
+
+```env
+NODE_ENV=production
+SUPABASE_URL=https://jvjxrknwbnsvgnobbfwa.supabase.co
+SUPABASE_ANON_KEY=<anon jwt>
+SUPABASE_SERVICE_ROLE_KEY=<sb_secret_...>
+FRONTEND_URL=https://TON-APP.vercel.app
+CORS_ORIGIN=http://localhost:3001,http://localhost:3000
 ```
 
-## Built with
+Health check : `https://TON-SERVICE.onrender.com/health`
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+---
+
+## 2) Vercel (Frontend)
+
+1. Import le repo GitHub `Kado96/BurundiFoodPrice`
+2. Vercel lit `vercel.json` (build `frontend`, output `frontend/dist`)
+3. Environment Variables Vercel :
+
+```env
+VITE_SUPABASE_PROJECT_ID=jvjxrknwbnsvgnobbfwa
+VITE_SUPABASE_URL=https://jvjxrknwbnsvgnobbfwa.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<anon jwt>
+VITE_API_URL=https://TON-SERVICE.onrender.com
+```
+
+4. Après le premier deploy Vercel, mets l’URL Vercel dans `FRONTEND_URL` / `CORS_ORIGIN` sur Render, puis Redeploy Render.
+
+---
+
+## Local
+
+```bash
+# API
+cd backend && npm install && npm run dev   # :4000
+
+# Front (autre terminal)
+cd frontend && npm install && npm run dev  # :3000/3001
+# VITE_API_URL vide → proxy /api → :4000
+```

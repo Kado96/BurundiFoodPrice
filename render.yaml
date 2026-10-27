@@ -1,3 +1,5 @@
+# Render = API uniquement (comme server/ chez Kora Agency)
+# Vercel = frontend (vercel.json → frontend/dist)
 services:
   - type: web
     name: BurundiFoodPrice
@@ -16,6 +18,8 @@ services:
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FRONTEND_URL
         sync: false
       - key: CORS_ORIGIN
         sync: false

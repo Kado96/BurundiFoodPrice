@@ -6,8 +6,10 @@ import adminRoutes from "./routes/admin.js";
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 
-const allowed = (process.env.CORS_ORIGIN || "http://localhost:3001")
-  .split(",")
+// Comme Kora Agency : FRONTEND_URL + CORS_ORIGIN (virgules OK)
+const allowed = [process.env.FRONTEND_URL, process.env.CORS_ORIGIN, "http://localhost:3001", "http://localhost:3000"]
+  .filter(Boolean)
+  .flatMap((v) => String(v).split(","))
   .map((s) => s.trim())
   .filter(Boolean);
 
