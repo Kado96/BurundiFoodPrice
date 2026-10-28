@@ -1,25 +1,46 @@
-# Render = API uniquement (comme server/ chez Kora Agency)
-# Vercel = frontend (vercel.json → frontend/dist)
 services:
+  # ----------------------------------------------------------------------------
+  # 1. SERVICE BACKEND API (Express + Node.js)
+  # ----------------------------------------------------------------------------
   - type: web
-    name: BurundiFoodPrice
+    name: burundi-food-price-api
     runtime: node
     rootDir: backend
     plan: free
-    region: frankfurt
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node src/index.js
     healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
       - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
+        value: https://jvjxrknwbnsvgnobbfwa.supabase.co
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: FRONTEND_URL
-        sync: false
+        sync: false # A renseigner dans le dashboard Render pour sécurité
       - key: CORS_ORIGIN
-        sync: false
+        value: https://burundi-food-price.vercel.app,http://localhost:3000
+
+  # ----------------------------------------------------------------------------
+  # 2. SERVICE FRONTEND WEB (Optionnel si heberge sur Render Static Site)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: burundi-food-price-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: bun install && bun run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SUPABASE_PROJECT_ID
+        value: jvjxrknwbnsvgnobbfwa
+      - key: VITE_SUPABASE_URL
+        value: https://jvjxrknwbnsvgnobbfwa.supabase.co
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2anhya253Ym5zdmdub2JiZndhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNjgxMzksImV4cCI6MjEwNzc0NDEzOX0.6BU65OVL_jcuc29NnWcQ7WiT53txB5aES8aFY4Z8ong
