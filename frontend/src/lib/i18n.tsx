@@ -58,6 +58,77 @@ export const dict = {
     en: "Dedicated to field agents and administrators",
   },
 
+  // Administration Tabs & Roles
+  dashboardTab: { fr: "Tableau de bord", rn: "Ikibaho nyamukuru", en: "Dashboard" },
+  validationTab: { fr: "Validation", rn: "Kwemeza ibiciro", en: "Validation" },
+  dataTab: { fr: "Collectes & Données", rn: "Amakuru yegeranijwe", en: "Collections & Data" },
+  trackingTab: { fr: "Suivi des agents", rn: "Gukurikirana abakozi", en: "Agent Tracking" },
+  usersTab: { fr: "Utilisateurs", rn: "Abakoresha", en: "Users" },
+  marketsTab: { fr: "Marchés", rn: "Amasoko", en: "Markets" },
+  productsTab: { fr: "Produits", rn: "Ibidandazwa", en: "Products" },
+  exportTab: { fr: "Export", rn: "Gusohora amakuru", en: "Export" },
+  superAdminRole: { fr: "super administrateur", rn: "umukuru mukuru", en: "super administrator" },
+  adminRole: { fr: "administrateur", rn: "umuyobozi", en: "administrator" },
+  supervisorRole: { fr: "superviseur", rn: "umugenzuzi", en: "supervisor" },
+  connectedAs: { fr: "Connecté en tant que", rn: "Winjiye nka", en: "Logged in as" },
+  reservedAccess: { fr: "Accès réservé", rn: "Ahabujijwe", en: "Restricted Access" },
+  reservedAccessSub: {
+    fr: "Cette page est réservée aux superviseurs et administrateurs.",
+    rn: "Uru rupapuro rwagenewe abagenzuzi n'abayobozi gusa.",
+    en: "This page is reserved for supervisors and administrators.",
+  },
+  goToAgentSpace: { fr: "Aller à l'espace agent", rn: "Jya mu kigo c'abakozi", en: "Go to agent portal" },
+
+  // Auth Page & Form
+  authTitle: { fr: "Espace de collecte et d'administration", rn: "Ahakorerwa iyegeranya n'ubuyobozi", en: "Data Collection & Administration" },
+  authSub: {
+    fr: "Réservé aux agents de terrain, superviseurs et administrateurs. Les comptes agents sont créés par l'administration.",
+    rn: "Ahagenewe abakozi bo mu kibuga, abagenzuzi n'abayobozi. Konti z'abakozi ziremwa n'ubuyobozi.",
+    en: "Reserved for field agents, supervisors and administrators. Agent accounts are provisioned by admin.",
+  },
+  authOfflineBullet: {
+    fr: "Formulaire de collecte guidé, avec GPS et photo, utilisable sans réseau.",
+    rn: "Urupapuro rw'iyegeranya buyobowe na GPS n'amafoto, rukora no hatari umuyoboro.",
+    en: "Guided collection form with GPS and photo, usable offline.",
+  },
+  authVerifyBullet: {
+    fr: "Chaque prix est vérifié par un superviseur avant publication.",
+    rn: "Buri giciro cyemezwa n'umugenzuzi mbere yo gutangazwa.",
+    en: "Every price record is verified by a supervisor prior to publication.",
+  },
+  signInTitle: { fr: "Connexion", rn: "Kwinjira", en: "Sign In" },
+  createAccountTitle: { fr: "Créer un compte", rn: "Kurema konti", en: "Create an Account" },
+  signInDesc: {
+    fr: "Entrez vos identifiants pour accéder à l'espace de collecte ou d'administration.",
+    rn: "Injiza ibikuranga kugira winjire mu kigo c'iyegeranya cyangwa ubugenzuzi.",
+    en: "Enter your credentials to access the collection or administration space.",
+  },
+  firstAdminDesc: {
+    fr: "Le premier compte créé devient super administrateur.",
+    rn: "Konti ya mbere iremwe iba iy'umuyobozi mukuru.",
+    en: "The first account created becomes super administrator.",
+  },
+  usernameLabel: { fr: "Nom d'utilisateur", rn: "Izina ry'umukoresha", en: "Username" },
+  usernamePlaceholder: { fr: "Ex: agent1 ou burundifood", rn: "Akarorero: agent1 cyangwa burundifood", en: "E.g. agent1 or burundifood" },
+  emailOptionalLabel: { fr: "Adresse e-mail (optionnel)", rn: "Imeli (si ngombwa)", en: "Email address (optional)" },
+  emailOptionalPlaceholder: { fr: "Ex: agent1@exemple.com (facultatif)", rn: "Akarorero: agent1@urugero.com", en: "E.g. agent1@example.com (optional)" },
+  passwordPinLabel: { fr: "Mot de passe / Code PIN (min. 3 caractères)", rn: "Ijambo ry'ibanga / Code PIN (byibura inyuguti 3)", en: "Password / PIN Code (min. 3 chars)" },
+  signInBtn: { fr: "Se connecter", rn: "Injira", en: "Sign in" },
+  createAccountBtn: { fr: "Créer le compte", rn: "Rema konti", en: "Create account" },
+  pleaseWait: { fr: "Veuillez patienter…", rn: "Rindira gato…", en: "Please wait…" },
+  toggleToSignUp: {
+    fr: "Premier lancement ? Créer le compte administrateur",
+    rn: "Bwa mbere? Rema konti y'umuyobozi",
+    en: "First time? Create administrator account",
+  },
+  toggleToSignIn: { fr: "J'ai déjà un compte", rn: "Mfise konti bisanzwe", en: "Already have an account" },
+  publicWebPrompt: {
+    fr: "Vous souhaitez simplement consulter les prix du marché ?",
+    rn: "Ushaka kuraba gusa ibiciro byo ku masoko?",
+    en: "Just looking to browse market food prices?",
+  },
+
+
   // Jours de la semaine
   monday: { fr: "Lundi", rn: "Kuwa mbere", en: "Monday" },
   tuesday: { fr: "Mardi", rn: "Kuwa kabiri", en: "Tuesday" },

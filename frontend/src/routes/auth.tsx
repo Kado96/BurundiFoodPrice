@@ -19,28 +19,33 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const nav = useNavigate();
   const [mode, setMode] = useState<"in" | "up">("in");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [emailOptional, setEmailOptional] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function formatLoginIdentifier(raw: string): string {
-    const val = raw.trim().toLowerCase();
-    if (!val) return "";
-    // Si l'utilisateur tape un e-mail avec '@', on le garde tel quel
-    if (val.includes("@")) return val;
-    // Sinon, on convertit son nom d'utilisateur/pseudo en identifiant interne unique
-    // en remplaçant les espaces par des tirets
-    const cleanUsername = val.replace(/\s+/g, ".");
-    return `${cleanUsername}@bfp.bi`;
+  function formatLoginIdentifier(u: string, optEmail: string): string {
+    const rawUser = u.trim().toLowerCase();
+    const rawEmail = optEmail.trim().toLowerCase();
+
+    // 1. Si un email explicite valide est saisi, on l'utilise
+    if (rawEmail && rawEmail.includes("@")) {
+      return rawEmail;
+    }
+    // 2. Si le champ username contient un '@', on le prend tel quel
+    if (rawUser.includes("@")) {
+      return rawUser;
+    }
+    // 3. Sinon, on génère l'identifiant technique Supabase unique à partir du nom d'utilisateur
+    const cleanUser = rawUser.replace(/\s+/g, ".");
+    return `${cleanUser}@bfp.bi`;
   }
 
   function formatAuthPassword(raw: string): string {
-    // Si le mot de passe fait moins de 6 caractères (ex: 3 chiffres '123'),
-    // on lui applique un salt standard pour satisfaire les contraintes du provider
     if (raw.length >= 3 && raw.length < 6) {
       return `bfp#${raw}#2026`;
     }
@@ -49,13 +54,17 @@ function AuthPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!username.trim()) {
+      toast.error(t("usernameLabel") + " obligatoire");
+      return;
+    }
     if (password.length < 3) {
-      toast.error("Le mot de passe / code PIN doit contenir au moins 3 caractères");
+      toast.error(t("passwordPinLabel"));
       return;
     }
     setBusy(true);
     try {
-      const authEmail = formatLoginIdentifier(email);
+      const authEmail = formatLoginIdentifier(username, emailOptional);
       const authPassword = formatAuthPassword(password);
 
       if (mode === "in") {
@@ -64,7 +73,6 @@ function AuthPage() {
           password: authPassword 
         });
         if (error) {
-          // Essai de fallback avec le mot de passe brut sans sel au cas où il avait été créé directement
           const fallback = await supabase.auth.signInWithPassword({ 
             email: authEmail, 
             password: password 
@@ -73,20 +81,19 @@ function AuthPage() {
             throw new Error(error.message.includes("banned") ? "Compte suspendu. Contactez l'administrateur." : "Identifiant ou mot de passe incorrect");
           }
         }
-        await supabase.rpc("ensure_profile", {});
+        await supabase.rpc("ensure_profile", { _full_name: name || username });
         const { data: u } = await supabase.auth.getUser();
         const { data: staff } = await supabase.rpc("is_staff", { _user_id: u.user!.id });
-        toast.success("Connexion réussie");
+        toast.success(lang === "rn" ? "Mwinjiye neza" : lang === "en" ? "Sign in successful" : "Connexion réussie");
         nav({ to: staff ? "/admin" : "/agent" });
       } else {
-        if (password.length < 3) throw new Error("Le mot de passe doit contenir au moins 3 caractères");
         const { error } = await supabase.auth.signUp({ 
           email: authEmail, 
           password: authPassword, 
-          options: { emailRedirectTo: window.location.origin, data: { full_name: name } } 
+          options: { emailRedirectTo: window.location.origin, data: { full_name: name || username } } 
         });
         if (error) throw new Error(error.message);
-        toast.success("Compte créé avec succès !");
+        toast.success(lang === "rn" ? "Konti yaremwe neza!" : lang === "en" ? "Account created successfully!" : "Compte créé avec succès !");
         setMode("in");
       }
     } catch (err) {
@@ -104,23 +111,51 @@ function AuthPage() {
     <main className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 px-4 py-8 md:grid-cols-2 md:py-12">
       <section className="hidden md:block">
         <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs"><Wheat className="h-6 w-6" /></span>
-        <h1 className="mt-6 text-4xl font-bold tracking-tight">Espace de collecte et d'administration</h1>
-        <p className="mt-3 text-muted-foreground">Réservé aux agents de terrain, superviseurs et administrateurs. Les comptes agents sont créés par l'administration.</p>
+        <h1 className="mt-6 text-4xl font-bold tracking-tight">{t("authTitle")}</h1>
+        <p className="mt-3 text-muted-foreground">{t("authSub")}</p>
         <ul className="mt-8 space-y-4 text-sm">
-          <li className="flex gap-3"><ClipboardList className="h-5 w-5 text-primary shrink-0" />Formulaire de collecte guidé, avec GPS et photo, utilisable sans réseau.</li>
-          <li className="flex gap-3"><ShieldCheck className="h-5 w-5 text-primary shrink-0" />Chaque prix est vérifié par un superviseur avant publication.</li>
+          <li className="flex gap-3"><ClipboardList className="h-5 w-5 text-primary shrink-0" />{t("authOfflineBullet")}</li>
+          <li className="flex gap-3"><ShieldCheck className="h-5 w-5 text-primary shrink-0" />{t("authVerifyBullet")}</li>
         </ul>
       </section>
 
       <div className="flex flex-col gap-4">
+        {/* Sélecteur de langue direct en haut de la boîte d'auth */}
+        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+          <span>{lang === "rn" ? "Ururimi :" : lang === "en" ? "Language :" : "Langue :"}</span>
+          <div className="flex rounded-md border bg-card p-0.5">
+            <button
+              type="button"
+              onClick={() => setLang("fr")}
+              className={cn("px-2.5 py-1 text-xs font-semibold rounded transition-colors", lang === "fr" ? "bg-primary text-primary-foreground" : "hover:bg-secondary")}
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("rn")}
+              className={cn("px-2.5 py-1 text-xs font-semibold rounded transition-colors", lang === "rn" ? "bg-primary text-primary-foreground" : "hover:bg-secondary")}
+            >
+              RN
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              className={cn("px-2.5 py-1 text-xs font-semibold rounded transition-colors", lang === "en" ? "bg-primary text-primary-foreground" : "hover:bg-secondary")}
+            >
+              EN
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={submit} className="rounded-xl border bg-card p-6 shadow-sm md:p-8">
           <div className="mb-4 flex items-center gap-2 md:hidden">
             <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground"><Wheat className="h-4 w-4" /></span>
             <span className="font-display font-bold text-foreground">Burundi Food Price</span>
           </div>
-          <h2 className="text-2xl font-bold">{mode === "in" ? "Connexion" : "Créer un compte"}</h2>
+          <h2 className="text-2xl font-bold">{mode === "in" ? t("signInTitle") : t("createAccountTitle")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "in" ? "Entrez vos identifiants pour accéder à l'espace de collecte ou d'administration." : "Le premier compte créé devient super administrateur."}
+            {mode === "in" ? t("signInDesc") : t("firstAdminDesc")}
           </p>
 
           <div className="mt-6 space-y-4">
@@ -130,29 +165,59 @@ function AuthPage() {
                   id="auth-fullname-input"
                   name="full_name"
                   className={input + " mt-1"}
-                  required
+                  placeholder="Ex: Donald Kandeke"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={100}
                 />
               </label>
             )}
-            <label htmlFor="auth-email-input" className="block text-sm font-medium">
-              Nom d'utilisateur ou E-mail
+            
+            {/* Champ 1 : Nom d'utilisateur (OBLIGATOIRE) */}
+            <div className="space-y-1.5">
+              <label htmlFor="auth-username-input" className="flex items-center justify-between text-sm font-semibold">
+                <span>{t("usernameLabel")}</span>
+                <span className="text-xs font-normal text-destructive bg-destructive/10 px-2 py-0.5 rounded">Obligatoire</span>
+              </label>
               <input
-                id="auth-email-input"
-                name="email"
-                className={input + " mt-1"}
+                id="auth-username-input"
+                name="username"
+                className={input}
                 type="text"
                 required
                 autoComplete="username"
-                placeholder="Ex: agent1 ou nom@domaine.bi"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("usernamePlaceholder")}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
-            </label>
-            <label htmlFor="auth-password-input" className="block text-sm font-medium">
-              Mot de passe / Code PIN (min. 3 chiffres)
+              <p className="text-xs text-muted-foreground">Votre identifiant principal (ex: burundifood ou agent1)</p>
+            </div>
+
+            {/* Champ 2 : Adresse E-mail (SÉPARÉ ET OPTIONNEL) */}
+            <div className="space-y-1.5 rounded-lg border border-dashed p-3 bg-muted/20">
+              <label htmlFor="auth-email-optional-input" className="flex items-center justify-between text-sm font-medium text-foreground">
+                <span>{t("emailOptionalLabel")}</span>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">Facultatif</span>
+              </label>
+              <input
+                id="auth-email-optional-input"
+                name="email_optional"
+                className={input}
+                type="email"
+                autoComplete="email"
+                placeholder={t("emailOptionalPlaceholder")}
+                value={emailOptional}
+                onChange={(e) => setEmailOptional(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Laissez vide si vous n'avez pas d'e-mail. Vous pourrez l'ajouter plus tard dans votre profil.</p>
+            </div>
+
+            {/* Champ 3 : Mot de passe / Code PIN */}
+            <div className="space-y-1.5">
+              <label htmlFor="auth-password-input" className="flex items-center justify-between text-sm font-semibold">
+                <span>{t("passwordPinLabel")}</span>
+                <span className="text-xs font-normal text-destructive bg-destructive/10 px-2 py-0.5 rounded">Obligatoire</span>
+              </label>
               <input
                 id="auth-password-input"
                 name="password"
@@ -160,19 +225,19 @@ function AuthPage() {
                 type="password"
                 required
                 minLength={3}
-                placeholder="Ex: 123"
+                placeholder="Ex: 123 ou votre mot de passe"
                 autoComplete={mode === "in" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-            </label>
+            </div>
             <button
               id="auth-submit-button"
               name="auth_submit"
               disabled={busy}
               className="h-11 w-full rounded-md bg-primary font-medium text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
-              {busy ? "Veuillez patienter…" : mode === "in" ? "Se connecter" : "Créer le compte"}
+              {busy ? t("pleaseWait") : mode === "in" ? t("signInBtn") : t("createAccountBtn")}
             </button>
           </div>
 
@@ -182,14 +247,14 @@ function AuthPage() {
             onClick={() => setMode(mode === "in" ? "up" : "in")}
             className="mt-5 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
           >
-            {mode === "in" ? "Premier lancement ? Créer le compte administrateur" : "J'ai déjà un compte"}
+            {mode === "in" ? t("toggleToSignUp") : t("toggleToSignIn")}
           </button>
         </form>
 
         {/* Bouton clair pour basculer sur l'observatoire public des prix */}
         <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center">
           <p className="text-xs text-muted-foreground mb-2">
-            Vous souhaitez simplement consulter les prix du marché ?
+            {t("publicWebPrompt")}
           </p>
           <button
             id="auth-goto-public-button"

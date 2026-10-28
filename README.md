@@ -87,8 +87,17 @@ Le projet dispose de toutes les configurations prêtes pour la production :
 
 ### Option 2 : Déploiement Render (Blueprint 1-Clic Backend + Frontend)
 1. Fichier Blueprint inclus : [`render.yaml`](file:///E:/Application/jarvis-starter-kit/deliverables/application/BurunduFoodPrice/render.yaml).
-2. Sur **[dashboard.render.com](https://dashboard.render.com/)**, cliquez sur **"New +"** ➔ **"Blueprint"**.
-3. Sélectionnez le dépôt `Kado96/BurundiFoodPrice`. Render déploiera automatiquement l'API backend et le site web !
+2. Sur **[dashboard.render.com](https://dashboard.render.com/)**, cliquez sur **"New +"** ➔ **"Blueprint"** *(et non pas Web Service)*.
+3. Sélectionnez le dépôt `Kado96/BurundiFoodPrice`. Render déploiera automatiquement l'API backend et le site web en parallèle avec re-déploiement automatique à chaque `git push` !
+
+### 🛠️ Réutiliser ce système de déploiement automatique sur d'autres projets :
+Le module universel **`jarvis-universal-deploy-blueprints`** permet de générer instantanément les fichiers `render.yaml` et `vercel.json` sur n'importe lequel de vos autres projets (Kukasoko, Learniverse, Kora Agency...).
+
+Pour l'exécuter dans un autre projet :
+```bash
+node E:\Application\jarvis-starter-kit\deliverables\application\jarvis-universal-deploy-blueprints\src\generate-blueprints.js
+```
+Il détecte automatiquement l'architecture de votre dossier et génère la configuration d'Infrastructure as Code prête à être poussée sur GitHub.
 
 ---
 

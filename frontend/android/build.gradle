@@ -28,6 +28,18 @@ allprojects {
     }
 }
 
+// ⚠️ PERMANENT FIX — Java 17 (JDK Temurin 17.0.16 installé)
+// capacitor.build.gradle régénère VERSION_21 à chaque `npx cap sync`.
+// Ce bloc afterEvaluate s'exécute EN DERNIER et surcharge toujours la version.
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android.compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+            project.android.compileOptions.targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
