@@ -12,7 +12,7 @@ interface ProductCard {
   name: string;
   avg: number;
   unit: string;
-  delta: number | null;
+  delta: number | string | null;
 }
 
 interface Props {
@@ -20,13 +20,15 @@ interface Props {
   loading?: boolean;
 }
 
-function DeltaBadge({ v }: { v: number | null }) {
-  if (v === null) return null;
-  if (Math.abs(v) < 0.5)
+function DeltaBadge({ v }: { v: number | string | null }) {
+  if (v === null || v === undefined) return null;
+  const num = typeof v === "number" ? v : parseFloat(String(v).replace("%", "").replace("+", ""));
+  if (isNaN(num)) return <span className="text-xs text-muted-foreground">{String(v)}</span>;
+  if (Math.abs(num) < 0.5)
     return <span className="flex items-center gap-0.5 text-xs text-muted-foreground"><Minus className="h-3 w-3" /> Stable</span>;
-  if (v > 0)
-    return <span className="flex items-center gap-0.5 text-xs font-semibold text-red-500"><TrendingUp className="h-3 w-3" /> +{v.toFixed(1)}%</span>;
-  return <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-600"><TrendingDown className="h-3 w-3" /> {v.toFixed(1)}%</span>;
+  if (num > 0)
+    return <span className="flex items-center gap-0.5 text-xs font-semibold text-red-500"><TrendingUp className="h-3 w-3" /> +{num.toFixed(1)}%</span>;
+  return <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-600"><TrendingDown className="h-3 w-3" /> {num.toFixed(1)}%</span>;
 }
 
 function SkeletonCard() {

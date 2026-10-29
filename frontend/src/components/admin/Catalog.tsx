@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Image, RefreshCcw, CheckCircle, XCircle } from "lucide-react";
+import { Pencil, Plus, Image, RefreshCcw, CheckCircle, XCircle, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRef, type Market, type Product } from "@/lib/data";
 import {
@@ -308,13 +308,59 @@ export function Markets() {
                 className="h-44 w-full"
               />
 
+              {/* Option 1 : Upload direct depuis l'ordinateur/téléphone */}
+              <div className="rounded-xl border border-dashed p-3 bg-muted/20">
+                <label className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5 mb-2 cursor-pointer">
+                  <Upload className="h-4 w-4 text-primary" />
+                  Importer une photo locale (JPG, PNG, WEBP)
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/jpg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error("L'image est trop volumineuse (max 5 Mo)");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const img = document.createElement("img");
+                        img.onload = () => {
+                          const canvas = document.createElement("canvas");
+                          const maxW = 900;
+                          let width = img.width;
+                          let height = img.height;
+                          if (width > maxW) {
+                            height = Math.round((height * maxW) / width);
+                            width = maxW;
+                          }
+                          canvas.width = width;
+                          canvas.height = height;
+                          const ctx = canvas.getContext("2d");
+                          ctx?.drawImage(img, 0, 0, width, height);
+                          const compressed = canvas.toDataURL("image/webp", 0.85);
+                          setModalUrl(compressed);
+                          toast.success("Photo chargée et optimisée ✅");
+                        };
+                        img.src = event.target?.result as string;
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                <p className="text-[11px] text-muted-foreground">Cliquez sur « Importer une photo locale » pour choisir un fichier de votre appareil.</p>
+              </div>
+
+              {/* Option 2 : Lien URL */}
               <div>
                 <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1">
-                  URL de l'image (Unsplash, HTTPS...)
+                  Ou renseigner une URL (Unsplash, HTTPS...)
                 </label>
                 <input
                   className={`${input} font-mono text-xs`}
-                  value={modalUrl}
+                  value={modalUrl.startsWith("data:") ? "(Photo locale importée prête)" : modalUrl}
                   onChange={(e) => setModalUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/photo-..."
                 />
@@ -335,7 +381,7 @@ export function Markets() {
                   onClick={() => setModalUrl(getProductFallback(photoModal))}
                   className="rounded-lg border border-red-200 text-red-600 px-2.5 py-1.5 font-medium hover:bg-red-50 dark:hover:bg-red-950/20"
                 >
-                  Supprimer (icône par défaut)
+                  Supprimer la photo
                 </button>
               </div>
 
@@ -610,13 +656,59 @@ export function Products() {
                 className="h-44 w-full"
               />
 
+              {/* Option 1 : Upload direct depuis l'ordinateur/téléphone */}
+              <div className="rounded-xl border border-dashed p-3 bg-muted/20">
+                <label className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5 mb-2 cursor-pointer">
+                  <Upload className="h-4 w-4 text-primary" />
+                  Importer une photo locale (JPG, PNG, WEBP)
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/jpg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error("L'image est trop volumineuse (max 5 Mo)");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const img = document.createElement("img");
+                        img.onload = () => {
+                          const canvas = document.createElement("canvas");
+                          const maxW = 900;
+                          let width = img.width;
+                          let height = img.height;
+                          if (width > maxW) {
+                            height = Math.round((height * maxW) / width);
+                            width = maxW;
+                          }
+                          canvas.width = width;
+                          canvas.height = height;
+                          const ctx = canvas.getContext("2d");
+                          ctx?.drawImage(img, 0, 0, width, height);
+                          const compressed = canvas.toDataURL("image/webp", 0.85);
+                          setModalUrl(compressed);
+                          toast.success("Photo du produit chargée et optimisée ✅");
+                        };
+                        img.src = event.target?.result as string;
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                <p className="text-[11px] text-muted-foreground">Cliquez sur « Importer une photo locale » pour choisir un fichier de votre appareil.</p>
+              </div>
+
+              {/* Option 2 : Lien URL */}
               <div>
                 <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1">
-                  URL de l'image (Unsplash, HTTPS...)
+                  Ou renseigner une URL (Unsplash, HTTPS...)
                 </label>
                 <input
                   className={`${input} font-mono text-xs`}
-                  value={modalUrl}
+                  value={modalUrl.startsWith("data:") ? "(Photo locale importée prête)" : modalUrl}
                   onChange={(e) => setModalUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/photo-..."
                 />
@@ -637,7 +729,7 @@ export function Products() {
                   onClick={() => setModalUrl(getProductFallback(photoModal))}
                   className="rounded-lg border border-red-200 text-red-600 px-2.5 py-1.5 font-medium hover:bg-red-50 dark:hover:bg-red-950/20"
                 >
-                  Supprimer (icône colorée)
+                  Supprimer la photo
                 </button>
               </div>
 
