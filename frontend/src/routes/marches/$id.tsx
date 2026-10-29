@@ -24,27 +24,23 @@ function MarchePage() {
   const ref = useRef();
   const latest = useLatest();
   const d = ref.data;
-  const m = d?.markets.find((x) => x.id === id);
 
+  // Tous les Hooks d'état et mémoïsation TOUJOURS au sommet absolu
   const [searchProd, setSearchProd] = useState("");
   const [selectedCat, setSelectedCat] = useState("");
 
-  if (ref.isLoading) return <Page><p className="text-muted-foreground">{t("loading")}</p></Page>;
-  if (!m) return <Page><p>Marché introuvable. <Link to="/marches" className="text-primary underline">Retour</Link></p></Page>;
+  const m = useMemo(() => d?.markets.find((x) => x.id === id), [d, id]);
+  const prov = useMemo(() => d?.provinces.find((p) => p.id === m?.province_id)?.name, [d, m]);
+  const prods = useMemo(() => Object.fromEntries((d?.products ?? []).map((p) => [p.id, p])), [d]);
+  const cats = useMemo(() => Object.fromEntries((d?.categories ?? []).map((c) => [c.id, c.name])), [d]);
+  const allCategories = useMemo(() => d?.categories ?? [], [d]);
 
-  const prov = d?.provinces.find((p) => p.id === m.province_id)?.name;
-  const prods = Object.fromEntries((d?.products ?? []).map((p) => [p.id, p]));
-  const cats = Object.fromEntries((d?.categories ?? []).map((c) => [c.id, c.name]));
-  const allCategories = d?.categories ?? [];
+  const rawRows = useMemo(() => {
+    return (latest.data ?? [])
+      .filter((l) => l.market_id === id)
+      .sort((a, b) => (prods[a.product_id]?.name ?? "").localeCompare(prods[b.product_id]?.name ?? ""));
+  }, [latest.data, id, prods]);
 
-  const rawRows = (latest.data ?? []).filter((l) => l.market_id === id)
-    .sort((a, b) => (prods[a.product_id]?.name ?? "").localeCompare(prods[b.product_id]?.name ?? ""));
-  
-  const last = rawRows.reduce((a, r) => (r.observed_at > a ? r.observed_at : a), "");
-  const ups = rawRows.filter((r) => (pct(r.unit_price, r.prev_price) ?? 0) > 0.5).length;
-  const marketPhoto = getMarketPhoto(m.name);
-
-  // Filtrage combiné par recherche texte et par catégorie
   const filteredRows = useMemo(() => {
     return rawRows.filter((r) => {
       const p = prods[r.product_id];
@@ -56,6 +52,13 @@ function MarchePage() {
       return matchesText && matchesCat;
     });
   }, [rawRows, prods, searchProd, selectedCat, tp]);
+
+  // Conditions de chargement / introuvable APRÈS tous les hooks
+  if (ref.isLoading) return <Page><p className="text-muted-foreground">{t("loading")}</p></Page>;
+  if (!m) return <Page><p>Marché introuvable. <Link to="/marches" className="text-primary underline">Retour</Link></p></Page>;
+
+  const last = rawRows.reduce((a, r) => (r.observed_at > a ? r.observed_at : a), "");
+  const marketPhoto = getMarketPhoto(m.name);
 
   return (
     <>
