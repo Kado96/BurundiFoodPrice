@@ -22,13 +22,15 @@ export function Avail({ v }: { v: string }) {
   return <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", cls)}>{label}</span>;
 }
 
-export function Delta({ v }: { v: number | null }) {
+export function Delta({ v }: { v: number | string | null | undefined }) {
   if (v == null) return <span className="text-muted-foreground">—</span>;
-  const up = v > 0.5, down = v < -0.5;
+  const num = typeof v === "number" ? v : parseFloat(String(v).replace("%", "").replace("+", ""));
+  if (isNaN(num)) return <span className="text-muted-foreground tabular-nums text-sm font-medium">{String(v)}</span>;
+  const up = num > 0.5, down = num < -0.5;
   const Icon = up ? TrendingUp : down ? TrendingDown : Minus;
   return (
     <span className={cn("inline-flex items-center gap-1 text-sm font-medium tabular-nums", up ? "text-destructive" : down ? "text-success" : "text-muted-foreground")}>
-      <Icon className="h-3.5 w-3.5" />{v > 0 ? "+" : ""}{v.toFixed(1)} %
+      <Icon className="h-3.5 w-3.5" />{num > 0 ? "+" : ""}{num.toFixed(1)} %
     </span>
   );
 }
