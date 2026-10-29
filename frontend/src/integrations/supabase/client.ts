@@ -6,7 +6,7 @@ function isNewSupabaseApiKey(value: string): boolean {
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  return (input, init) => {
+  return async (input, init) => {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
@@ -21,6 +21,25 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set('apikey', supabaseKey);
+
+    // Stratégie de résilience réseau : 3 tentatives automatiques en cas de micro-coupure socket
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await fetch(input, { ...init, headers });
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        const isSocketError =
+          msg.includes("ERR_SOCKET_NOT_CONNECTED") ||
+          msg.includes("Failed to fetch") ||
+          msg.includes("NetworkError");
+
+        if (attempt < 3 && isSocketError) {
+          await new Promise((r) => setTimeout(r, 600 * attempt));
+          continue;
+        }
+        throw err;
+      }
+    }
     return fetch(input, { ...init, headers });
   };
 }
