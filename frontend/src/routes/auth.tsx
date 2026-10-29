@@ -5,6 +5,7 @@ import { ClipboardList, ShieldCheck, Wheat, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { setOptedForPublicWeb } from "@/lib/mobile";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [
@@ -97,7 +98,12 @@ function AuthPage() {
         setMode("in");
       }
     } catch (err) {
-      toast.error((err as Error).message);
+      const msg = (err as Error).message || "";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("ERR_NAME_NOT_RESOLVED") || !navigator.onLine) {
+        toast.error("Erreur de connexion Internet : impossible de joindre le serveur. Vérifiez votre connexion.");
+      } else {
+        toast.error(msg);
+      }
     } finally { setBusy(false); }
   }
 

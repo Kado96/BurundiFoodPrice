@@ -5,22 +5,25 @@
  */
 
 export const PRODUCT_IMAGES: Record<string, string> = {
-  "Riz local":         "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80",
-  "Maïs grain":        "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=400&q=80",
-  "Sorgho":            "https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=400&q=80",
-  "Haricot jaune":     "https://images.unsplash.com/photo-1596797882870-8c33deeac224?auto=format&fit=crop&w=400&q=80",
-  "Petits pois secs":  "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80",
-  "Arachides":         "https://images.unsplash.com/photo-1567892328127-d0e5ea75d862?auto=format&fit=crop&w=400&q=80",
-  "Farine de manioc":  "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=400&q=80",
-  "Pomme de terre":    "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=400&q=80",
-  "Patate douce":      "https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?auto=format&fit=crop&w=400&q=80",
-  "Banane plantain":   "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=400&q=80",
-  "Tomates":           "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80",
-  "Oignons":           "https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=400&q=80",
-  "Huile de palme":    "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=400&q=80",
-  "Viande de bœuf":   "https://images.unsplash.com/photo-1603048588665-791ca8aea617?auto=format&fit=crop&w=400&q=80",
-  "Ndagala séché":     "https://images.unsplash.com/photo-1534948216015-843149f72be3?auto=format&fit=crop&w=400&q=80",
-  "Sucre":             "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=400&q=80",
+  "Riz local":         "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80",
+  "Maïs grain":        "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=600&q=80",
+  // Vraie céréale sorgho au lieu de pain
+  "Sorgho":            "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=600&q=80",
+  "Haricot jaune":     "https://images.unsplash.com/photo-1596797882870-8c33deeac224?auto=format&fit=crop&w=600&q=80",
+  "Petits pois secs":  "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80",
+  "Arachides":         "https://images.unsplash.com/photo-1567892328127-d0e5ea75d862?auto=format&fit=crop&w=600&q=80",
+  "Farine de manioc":  "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=600&q=80",
+  "Pomme de terre":    "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80",
+  "Patate douce":      "https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?auto=format&fit=crop&w=600&q=80",
+  "Banane plantain":   "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80",
+  "Tomates":           "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80",
+  "Oignons":           "https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=600&q=80",
+  "Huile de palme":    "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80",
+  // Vraie viande de bœuf étal de boucherie au lieu d'un disque vinyle
+  "Viande de bœuf":   "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=600&q=80",
+  "Ndagala séché":     "https://images.unsplash.com/photo-1534948216015-843149f72be3?auto=format&fit=crop&w=600&q=80",
+  // Vrai sucre blanc en poudre/morceaux au lieu d'une rose
+  "Sucre":             "https://images.unsplash.com/photo-1622484212850-cab596d63c5a?auto=format&fit=crop&w=600&q=80",
 };
 
 export interface MarketSlide {
@@ -29,6 +32,24 @@ export interface MarketSlide {
   caption: string;
   image: string;
 }
+
+export const MARKET_IMAGES: Record<string, string> = {
+  "Marché Central de Bujumbura": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Cotebu":           "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ruvumera":        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kinama":          "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Gitega":          "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+  "Marché de Muramvya":        "https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ngozi":           "https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kayanza":         "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kirundo":         "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
+  "Marché de Muyinga":         "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ruyigi":          "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Cankuzo":         "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Rumonge":         "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+  "Marché de Makamba":         "https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Bururi":          "https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=800&q=80",
+};
 
 export const MARKET_SLIDES: MarketSlide[] = [
   {
@@ -62,6 +83,15 @@ export const MARKET_SLIDES: MarketSlide[] = [
     image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1400&q=85",
   },
 ];
+
+export function getMarketPhoto(marketName: string): string {
+  if (MARKET_IMAGES[marketName]) return MARKET_IMAGES[marketName];
+  // Fallback déterministe
+  const keys = Object.keys(MARKET_IMAGES);
+  let hash = 0;
+  for (let i = 0; i < marketName.length; i++) hash = (hash + marketName.charCodeAt(i)) % keys.length;
+  return MARKET_IMAGES[keys[hash]] || MARKET_SLIDES[0].image;
+}
 
 /** Fallback SVG coloré si l'image ne charge pas (mode offline Android) */
 export function getProductFallback(name: string): string {

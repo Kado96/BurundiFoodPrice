@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, MapPin, Search, BarChart3, Users, Package } from "lucide-react";
+import { ArrowRight, MapPin, Search, BarChart3, Package, Table as TableIcon } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { useLatest, useRef, fbu, pct, fmtDate } from "@/lib/data";
 import { Avail, Delta, Page, Stat } from "@/components/bits";
 import { LazyMap } from "@/components/LazyMap";
@@ -9,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { isMobilePlatform, hasOptedForPublicWeb } from "@/lib/mobile";
 import { MarketHeroCarousel } from "@/components/MarketHeroCarousel";
 import { ProductPhotoGrid } from "@/components/ProductPhotoGrid";
+import { PRODUCT_IMAGES, getProductFallback } from "@/lib/images";
 
 export const Route = createFileRoute("/")(
   {
@@ -30,6 +32,9 @@ function Home() {
   const { t, tm, tp } = useI18n();
   const navigate = useNavigate();
   const { user, ready, roles, isStaff } = useAuth();
+
+  // Mode d'affichage comparatif : Tableau vs Graphique
+  const [viewMode, setViewMode] = useState<"table" | "chart">("table");
 
   // Redirection automatique sur Mobile / Android
   useEffect(() => {
@@ -66,7 +71,7 @@ function Home() {
       if (r.prev_price) { x.prev += Number(r.prev_price); x.np++; }
     });
     return Object.entries(g).map(([id, x]) => ({
-      id, avg: x.sum / x.n, unit: x.unit,
+      id, avg: Math.round(x.sum / x.n), unit: x.unit,
       delta: x.np ? pct(x.sum / x.n, x.prev / x.np) : null,
       name: prodName[id] ?? "",
     })).sort((a, b) => a.name.localeCompare(b.name));
@@ -179,36 +184,129 @@ function Home() {
         </section>
 
         {/* ═══════════════════════════════════════════════
-            TABLEAU SYNTHÉTIQUE DES PRIX (garde-fou données)
+            COMPARATIF DÉTAILLÉ : PHOTOS + BASCULE TABLEAU / GRAPHIQUE
         ═══════════════════════════════════════════════ */}
         {!latest.isLoading && national.length > 0 && (
           <section className="mb-12">
-            <div className="mb-3 flex items-end justify-between">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-bold">Comparatif détaillé des prix</h2>
               </div>
+
+              {/* Bouton bascule Tableau vs Graphique */}
+              <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                    viewMode === "table"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <TableIcon className="h-3.5 w-3.5" />
+                  Tableau avec Photos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("chart")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                    viewMode === "chart"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Graphique Interactif
+                </button>
+              </div>
             </div>
-            <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/60 text-left text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="p-3">{t("productLabel")}</th>
-                    <th className="p-3 text-right">{t("avgPrice")}</th>
-                    <th className="p-3 text-right">{t("over30Days")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {national.map((n) => (
-                    <tr key={n.id} className="border-t hover:bg-muted/30 transition-colors">
-                      <td className="p-3 font-medium">{tp(n.name)}</td>
-                      <td className="p-3 text-right tabular-nums font-semibold text-primary">{fbu(n.avg)}/{n.unit}</td>
-                      <td className="p-3 text-right"><Delta v={n.delta} /></td>
+
+            {viewMode === "table" ? (
+              /* Vue Tableau enrichi avec Photos réelles */
+              <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/60 text-left text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="p-3 w-16">Photo</th>
+                      <th className="p-3">{t("productLabel")}</th>
+                      <th className="p-3 text-right">{t("avgPrice")}</th>
+                      <th className="p-3 text-right">{t("over30Days")}</th>
+                      <th className="p-3 text-right">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {national.map((n) => {
+                      const img = PRODUCT_IMAGES[n.name] || getProductFallback(n.name);
+                      const fallback = getProductFallback(n.name);
+                      return (
+                        <tr key={n.id} className="border-t hover:bg-muted/30 transition-colors">
+                          <td className="p-2.5">
+                            <img
+                              src={img}
+                              alt={n.name}
+                              loading="lazy"
+                              onError={(e) => { (e.target as HTMLImageElement).src = fallback; }}
+                              className="h-10 w-12 rounded-md object-cover shadow-xs border"
+                            />
+                          </td>
+                          <td className="p-3 font-semibold text-foreground">
+                            {tp(n.name)}
+                          </td>
+                          <td className="p-3 text-right tabular-nums font-bold text-primary">
+                            {fbu(n.avg)}
+                            <span className="text-xs font-normal text-muted-foreground">/{n.unit}</span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <Delta v={n.delta} />
+                          </td>
+                          <td className="p-3 text-right">
+                            <Link
+                              to="/produits"
+                              search={{ product: n.id } as any}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                            >
+                              Détails <ArrowRight className="h-3 w-3" />
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* Vue Graphique Interactif en Barres Horizontales */
+              <div className="rounded-xl border bg-card p-4 shadow-sm">
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Classement des prix moyens nationaux (du moins cher au plus cher en FBu)
+                </p>
+                <div style={{ width: "100%", height: Math.max(380, national.length * 28) }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={national.slice().sort((a, b) => a.avg - b.avg)}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 70, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
+                      <XAxis type="number" tickFormatter={(v) => `${v} FBu`} tick={{ fontSize: 11 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tick={{ fontSize: 11 }}
+                        width={110}
+                      />
+                      <RechartsTooltip
+                        formatter={(val: number) => [`${fbu(val)}`, "Prix moyen"]}
+                        contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
+                      />
+                      <Bar dataKey="avg" fill="var(--primary)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
