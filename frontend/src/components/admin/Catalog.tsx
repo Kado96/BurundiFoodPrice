@@ -23,7 +23,7 @@ import {
 
 const input = "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
-// ─── Utilitaires localStorage photos ───────────────────────────────────────
+// ─── Utilitaires localStorage & Cloud Supabase photos ───────────────────────
 
 const STORAGE_MARKET = "bfp_photo_market";
 const STORAGE_PRODUCT = "bfp_photo_product";
@@ -35,18 +35,51 @@ function savePhotoStore(key: string, store: Record<string, string>) {
   localStorage.setItem(key, JSON.stringify(store));
 }
 
+// Synchronise de manière transparente et persistante vers Supabase cloud
+async function syncPhotosToSupabaseCloud() {
+  try {
+    const markets = loadPhotoStore(STORAGE_MARKET);
+    const products = loadPhotoStore(STORAGE_PRODUCT);
+    const payload = { markets, products };
+    const jsonStr = JSON.stringify(payload);
+    const encoded = "__SYSTEM_PHOTOS__:" + btoa(unescape(encodeURIComponent(jsonStr)));
+
+    // Rechercher l'enregistrement existant
+    const { data: existing } = await supabase
+      .from("categories")
+      .select("id")
+      .like("name", "__SYSTEM_PHOTOS__:%")
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      await supabase
+        .from("categories")
+        .update({ name: encoded, sort: 999 })
+        .eq("id", existing[0].id);
+    } else {
+      await supabase
+        .from("categories")
+        .insert({ name: encoded, sort: 999 });
+    }
+  } catch (err) {
+    console.warn("[cloud-sync] error uploading photos metadata to Supabase:", err);
+  }
+}
+
 export function useMarketPhotos() {
   const [store, setStore] = useState<Record<string, string>>(() => loadPhotoStore(STORAGE_MARKET));
   function setPhoto(name: string, url: string) {
     const next = { ...store, [name]: url };
     setStore(next);
     savePhotoStore(STORAGE_MARKET, next);
+    syncPhotosToSupabaseCloud();
   }
   function resetPhoto(name: string) {
     const next = { ...store };
     delete next[name];
     setStore(next);
     savePhotoStore(STORAGE_MARKET, next);
+    syncPhotosToSupabaseCloud();
   }
   function getPhoto(name: string) {
     return store[name] || MARKET_IMAGES[name] || getMarketPhoto(name);
@@ -60,12 +93,14 @@ export function useProductPhotos() {
     const next = { ...store, [name]: url };
     setStore(next);
     savePhotoStore(STORAGE_PRODUCT, next);
+    syncPhotosToSupabaseCloud();
   }
   function resetPhoto(name: string) {
     const next = { ...store };
     delete next[name];
     setStore(next);
     savePhotoStore(STORAGE_PRODUCT, next);
+    syncPhotosToSupabaseCloud();
   }
   function getPhoto(name: string) {
     return store[name] || PRODUCT_IMAGES[name] || getProductFallback(name);
@@ -120,6 +155,8 @@ export function Markets() {
   const { getPhoto, setPhoto, resetPhoto } = useMarketPhotos();
   const [edit, setEdit] = useState<Partial<Market> | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoModal, setPhotoModal] = useState<string | null>(null);
+  const [modalUrl, setModalUrl] = useState("");
   const d = ref.data;
   const prov = Object.fromEntries((d?.provinces ?? []).map((p) => [p.id, p.name]));
 
@@ -246,26 +283,121 @@ export function Markets() {
         </form>
       )}
 
+      {/* ─── Modal dédiée : Modifier / Supprimer la photo du marché ─── */}
+      {photoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <Image className="h-5 w-5 text-primary" />
+                Photo du marché : {photoModal}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPhotoModal(null)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <PhotoPreview
+                url={modalUrl || getPhoto(photoModal)}
+                alt={photoModal}
+                className="h-44 w-full"
+              />
+
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1">
+                  URL de l'image (Unsplash, HTTPS...)
+                </label>
+                <input
+                  className={`${input} font-mono text-xs`}
+                  value={modalUrl}
+                  onChange={(e) => setModalUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-..."
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                {MARKET_IMAGES[photoModal] && (
+                  <button
+                    type="button"
+                    onClick={() => setModalUrl(MARKET_IMAGES[photoModal])}
+                    className="rounded-lg border px-2.5 py-1.5 font-medium hover:bg-muted"
+                  >
+                    Restaurer l'image officielle
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setModalUrl(getProductFallback(photoModal))}
+                  className="rounded-lg border border-red-200 text-red-600 px-2.5 py-1.5 font-medium hover:bg-red-50 dark:hover:bg-red-950/20"
+                >
+                  Supprimer (icône par défaut)
+                </button>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setPhotoModal(null)}
+                  className="h-9 rounded-xl border px-4 text-xs font-medium hover:bg-muted"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (modalUrl.trim()) {
+                      setPhoto(photoModal, modalUrl.trim());
+                      toast.success(`Photo de ${photoModal} mise à jour et synchronisée`);
+                    } else {
+                      resetPhoto(photoModal);
+                      toast.info(`Photo de ${photoModal} réinitialisée`);
+                    }
+                    setPhotoModal(null);
+                  }}
+                  className="h-9 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground hover:opacity-90 shadow-xs"
+                >
+                  Enregistrer la photo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── Tableau des marchés avec photos ─── */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/30 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="p-3 w-16">Photo</th>
+              <th className="p-3 w-20">Photo</th>
               <th className="p-3">Marché</th>
               <th className="p-3 hidden md:table-cell">Province</th>
               <th className="p-3 hidden lg:table-cell">Commune</th>
               <th className="p-3 hidden lg:table-cell">GPS</th>
               <th className="p-3 hidden md:table-cell">Jours</th>
               <th className="p-3">Statut</th>
-              <th className="p-3"></th>
+              <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {d?.markets.map((m) => (
               <tr key={m.id} className="border-t hover:bg-muted/20 transition-colors">
                 <td className="p-2">
-                  <PhotoPreview url={getPhoto(m.name)} alt={m.name} className="h-12 w-16 rounded-lg" />
+                  <div
+                    onClick={() => { setPhotoModal(m.name); setModalUrl(getPhoto(m.name)); }}
+                    className="group relative cursor-pointer overflow-hidden rounded-lg"
+                    title="Cliquer pour changer ou supprimer la photo"
+                  >
+                    <PhotoPreview url={getPhoto(m.name)} alt={m.name} className="h-12 w-16 rounded-lg transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Image className="h-4 w-4 text-white" />
+                    </div>
+                  </div>
                 </td>
                 <td className="p-3 font-semibold">{m.name}</td>
                 <td className="p-3 hidden md:table-cell text-muted-foreground">{prov[m.province_id]}</td>
@@ -273,10 +405,23 @@ export function Markets() {
                 <td className="p-3 hidden lg:table-cell tabular-nums text-muted-foreground text-xs">{m.lat.toFixed(3)}, {m.lng.toFixed(3)}</td>
                 <td className="p-3 hidden md:table-cell text-muted-foreground">{m.market_days ?? "—"}</td>
                 <td className="p-3"><StatusBadge active={m.active} /></td>
-                <td className="p-3">
-                  <button onClick={() => openEdit(m)} className="rounded-lg border p-2 hover:bg-muted transition-colors" title="Modifier">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
+                <td className="p-3 text-right">
+                  <div className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={() => { setPhotoModal(m.name); setModalUrl(getPhoto(m.name)); }}
+                      className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors text-primary"
+                      title="Changer, supprimer ou réinitialiser la photo"
+                    >
+                      <Image className="h-3.5 w-3.5" /> Photo
+                    </button>
+                    <button
+                      onClick={() => openEdit(m)}
+                      className="rounded-lg border p-1.5 hover:bg-muted transition-colors"
+                      title="Modifier les détails du marché"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -297,6 +442,8 @@ export function Products() {
   const { getPhoto, setPhoto, resetPhoto } = useProductPhotos();
   const [edit, setEdit] = useState<Partial<Product> | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoModal, setPhotoModal] = useState<string | null>(null);
+  const [modalUrl, setModalUrl] = useState("");
   const [cat, setCat] = useState("");
   const d = ref.data;
   const cats = Object.fromEntries((d?.categories ?? []).map((c) => [c.id, c.name]));
@@ -438,33 +585,141 @@ export function Products() {
         </form>
       )}
 
+      {/* ─── Modal dédiée : Modifier / Supprimer la photo du produit ─── */}
+      {photoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <Image className="h-5 w-5 text-primary" />
+                Photo du produit : {photoModal}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPhotoModal(null)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <PhotoPreview
+                url={modalUrl || getPhoto(photoModal)}
+                alt={photoModal}
+                className="h-44 w-full"
+              />
+
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1">
+                  URL de l'image (Unsplash, HTTPS...)
+                </label>
+                <input
+                  className={`${input} font-mono text-xs`}
+                  value={modalUrl}
+                  onChange={(e) => setModalUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-..."
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                {PRODUCT_IMAGES[photoModal] && (
+                  <button
+                    type="button"
+                    onClick={() => setModalUrl(PRODUCT_IMAGES[photoModal])}
+                    className="rounded-lg border px-2.5 py-1.5 font-medium hover:bg-muted"
+                  >
+                    Restaurer l'image officielle
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setModalUrl(getProductFallback(photoModal))}
+                  className="rounded-lg border border-red-200 text-red-600 px-2.5 py-1.5 font-medium hover:bg-red-50 dark:hover:bg-red-950/20"
+                >
+                  Supprimer (icône colorée)
+                </button>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setPhotoModal(null)}
+                  className="h-9 rounded-xl border px-4 text-xs font-medium hover:bg-muted"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (modalUrl.trim()) {
+                      setPhoto(photoModal, modalUrl.trim());
+                      toast.success(`Photo de ${photoModal} mise à jour et synchronisée`);
+                    } else {
+                      resetPhoto(photoModal);
+                      toast.info(`Photo de ${photoModal} réinitialisée`);
+                    }
+                    setPhotoModal(null);
+                  }}
+                  className="h-9 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground hover:opacity-90 shadow-xs"
+                >
+                  Enregistrer la photo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── Tableau des produits avec photos ─── */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/30 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="p-3 w-16">Photo</th>
+              <th className="p-3 w-20">Photo</th>
               <th className="p-3">Produit</th>
               <th className="p-3 hidden md:table-cell">Catégorie</th>
               <th className="p-3 hidden md:table-cell">Unité</th>
               <th className="p-3">Statut</th>
-              <th className="p-3"></th>
+              <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {d?.products.map((p) => (
               <tr key={p.id} className="border-t hover:bg-muted/20 transition-colors">
                 <td className="p-2">
-                  <PhotoPreview url={getPhoto(p.name)} alt={p.name} className="h-12 w-16 rounded-lg" />
+                  <div
+                    onClick={() => { setPhotoModal(p.name); setModalUrl(getPhoto(p.name)); }}
+                    className="group relative cursor-pointer overflow-hidden rounded-lg"
+                    title="Cliquer pour changer ou supprimer la photo"
+                  >
+                    <PhotoPreview url={getPhoto(p.name)} alt={p.name} className="h-12 w-16 rounded-lg transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Image className="h-4 w-4 text-white" />
+                    </div>
+                  </div>
                 </td>
                 <td className="p-3 font-semibold">{p.name}</td>
                 <td className="p-3 hidden md:table-cell text-muted-foreground">{cats[p.category_id]}</td>
                 <td className="p-3 hidden md:table-cell text-muted-foreground">{p.default_unit}</td>
                 <td className="p-3"><StatusBadge active={p.active} /></td>
-                <td className="p-3">
-                  <button onClick={() => openEdit(p)} className="rounded-lg border p-2 hover:bg-muted transition-colors" title="Modifier">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
+                <td className="p-3 text-right">
+                  <div className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={() => { setPhotoModal(p.name); setModalUrl(getPhoto(p.name)); }}
+                      className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors text-primary"
+                      title="Changer, supprimer ou réinitialiser la photo"
+                    >
+                      <Image className="h-3.5 w-3.5" /> Photo
+                    </button>
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="rounded-lg border p-1.5 hover:bg-muted transition-colors"
+                      title="Modifier les détails du produit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
