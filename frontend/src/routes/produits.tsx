@@ -5,7 +5,7 @@ import { useLatest, useRef, useSeries, fbu, pct, fmtDate } from "@/lib/data";
 import { Avail, Delta, Page, Stat } from "@/components/bits";
 import { useI18n } from "@/lib/i18n";
 import { PRODUCT_IMAGES, getProductFallback } from "@/lib/images";
-import { TrendingUp, TrendingDown, Minus, MapPin, Calendar, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, MapPin, Calendar, ArrowRight, BarChart3, LineChart as ChartIcon } from "lucide-react";
 
 export const Route = createFileRoute("/produits")({
   head: () => ({
@@ -21,7 +21,16 @@ export const Route = createFileRoute("/produits")({
   component: ProduitsPage,
 });
 
-const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+// Couleurs vives et contrastées avec support universel SVG
+const VIBRANT_COLORS = [
+  "#2563eb", // Bleu royal
+  "#16a34a", // Vert émeraude
+  "#ea580c", // Orange vif
+  "#9333ea", // Violet
+  "#dc2626", // Rouge vermillon
+  "#0891b2", // Cyan
+  "#d97706", // Ambre
+];
 
 function ProduitsPage() {
   const { t, tm, tp } = useI18n();
@@ -46,16 +55,31 @@ function ProduitsPage() {
   const mktName = useMemo(() => Object.fromEntries((d?.markets ?? []).map((m) => [m.id, m.name])), [d]);
   const current = (latest.data ?? []).filter((l) => l.product_id === productId).sort((a, b) => a.unit_price - b.unit_price);
 
-  const { chart, keys } = useMemo(() => {
+  const { chart, keys, minPrice, maxPrice } = useMemo(() => {
     const s = series.data ?? [];
     const count: Record<string, number> = {};
     s.forEach((r) => (count[r.market_id] = (count[r.market_id] ?? 0) + 1));
     const keys = Object.entries(count).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k]) => k);
     const byDay: Record<string, Record<string, number | string>> = {};
+    let min = Infinity;
+    let max = -Infinity;
+
     s.filter((r) => keys.includes(r.market_id)).forEach((r) => {
-      (byDay[r.day] ??= { day: r.day })[r.market_id] = Number(r.price);
+      const p = Number(r.price);
+      if (p > 0) {
+        if (p < min) min = p;
+        if (p > max) max = p;
+        (byDay[r.day] ??= { day: r.day })[r.market_id] = p;
+      }
     });
-    return { chart: Object.values(byDay).sort((a, b) => String(a['day']).localeCompare(String(b['day']))), keys };
+
+    const rows = Object.values(byDay).sort((a, b) => String(a['day']).localeCompare(String(b['day'])));
+    return { 
+      chart: rows, 
+      keys, 
+      minPrice: isFinite(min) ? Math.floor(min * 0.9 / 100) * 100 : 0, 
+      maxPrice: isFinite(max) ? Math.ceil(max * 1.1 / 100) * 100 : 10000 
+    };
   }, [series.data]);
 
   const selectedProduct = d?.products.find((p) => p.id === productId);
@@ -201,32 +225,63 @@ function ProduitsPage() {
         )}
 
         {/* ═══════════════════════════════════════════════
-            GRAPHIQUE D'ÉVOLUTION DANS LE TEMPS
+            GRAPHIQUE D'ÉVOLUTION DANS LE TEMPS AVEC VALEURS ET COURBES VISIBLES
         ═══════════════════════════════════════════════ */}
         <div className="mb-10 rounded-2xl border bg-card p-5 shadow-sm">
-          <h2 className="text-lg font-bold">Évolution temporelle sur les principaux marchés</h2>
-          <p className="text-xs text-muted-foreground mb-4">
-            Comparaison dynamique des cours sur les 5 marchés les plus actifs
-          </p>
-          <div style={{ width: "100%", height: 320 }}>
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <ChartIcon className="h-5 w-5 text-primary" />
+                Évolution temporelle sur les principaux marchés
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Comparaison dynamique des cours sur les 5 marchés les plus actifs ({days} jours)
+              </p>
+            </div>
+            {chart.length > 0 && (
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary self-start sm:self-auto">
+                {chart.length} relevés chronologiques
+              </span>
+            )}
+          </div>
+
+          <div style={{ width: "100%", height: 360 }}>
             <ResponsiveContainer>
-              <LineChart data={chart} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => `${v}`} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(val: number) => [`${fbu(val)}/${unit}`, ""]}
-                  contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
+              <LineChart data={chart} margin={{ top: 15, right: 30, left: 15, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                <XAxis 
+                  dataKey="day" 
+                  tick={{ fontSize: 11 }} 
+                  tickFormatter={(d) => {
+                    const parts = d.split("-");
+                    return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
+                  }}
                 />
-                <Legend formatter={(id) => tm(mktName[id] ?? id)} wrapperStyle={{ fontSize: 12 }} />
+                <YAxis 
+                  domain={[minPrice, maxPrice]} 
+                  tickFormatter={(v) => `${v} FBu`} 
+                  tick={{ fontSize: 11 }} 
+                  width={80}
+                />
+                <Tooltip
+                  formatter={(val: number) => [`${fbu(val)}/${unit}`, "Prix"]}
+                  labelFormatter={(lbl) => `Date du relevé : ${lbl}`}
+                  contentStyle={{ backgroundColor: "var(--card)", borderRadius: "10px", border: "1px solid var(--border)", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                />
+                <Legend 
+                  formatter={(id) => <span className="text-xs font-semibold text-foreground">{tm(mktName[id] ?? id)}</span>} 
+                  wrapperStyle={{ paddingTop: "12px" }} 
+                />
                 {keys.map((k, i) => (
                   <Line
                     key={k}
                     type="monotone"
                     dataKey={k}
-                    stroke={COLORS[i % COLORS.length]}
-                    strokeWidth={2.5}
-                    dot={false}
+                    stroke={VIBRANT_COLORS[i % VIBRANT_COLORS.length]}
+                    strokeWidth={3}
+                    dot={{ r: 4, strokeWidth: 1.5, fill: "#fff" }}
+                    activeDot={{ r: 6, stroke: VIBRANT_COLORS[i % VIBRANT_COLORS.length], strokeWidth: 2 }}
+                    connectNulls={true}
                   />
                 ))}
               </LineChart>
