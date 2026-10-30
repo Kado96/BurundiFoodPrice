@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Image, RefreshCcw, CheckCircle, XCircle, Upload } from "lucide-react";
+import { Pencil, Plus, Image, RefreshCcw, CheckCircle, XCircle, Upload, Loader2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRef, type Market, type Product } from "@/lib/data";
 import {
@@ -146,9 +146,159 @@ function StatusBadge({ active }: { active: boolean }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  MARCHÉS
-// ═══════════════════════════════════════════════════════════════════════════
+// ─── Composant Dropzone réutilisable pour l'import de photo ─────────────────
+
+interface PhotoDropzoneProps {
+  type: "market" | "product";
+  name: string;
+  onUploaded: (url: string) => void;
+  className?: string;
+  buttonOnly?: boolean;
+}
+
+function PhotoDropzone({ type, name, onUploaded, className = "", buttonOnly = false }: PhotoDropzoneProps) {
+  const [uploading, setUploading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  async function handleFile(file: File) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'image est trop volumineuse (max 5 Mo)");
+      return;
+    }
+    setUploading(true);
+    setSuccess(false);
+
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setUploading(false);
+      toast.error("Erreur de lecture du fichier");
+    };
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onerror = () => {
+        setUploading(false);
+        toast.error("Impossible de charger l'image");
+      };
+      img.onload = async () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const maxW = 900;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxW) {
+            height = Math.round((height * maxW) / width);
+            width = maxW;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/webp", 0.85);
+
+          // Afficher tout de suite en local
+          onUploaded(compressed);
+
+          // Téléverser vers Supabase Storage
+          const targetName = name?.trim() || `${type}_${Date.now()}`;
+          const uploadToast = toast.loading("Téléversement vers Supabase Storage...");
+          try {
+            const res = await adminUploadPhoto({
+              type,
+              name: targetName,
+              dataUrl: compressed,
+            });
+            if (res?.url) {
+              onUploaded(res.url);
+              setSuccess(true);
+              toast.success("Photo téléversée dans Supabase Storage 🚀", { id: uploadToast });
+              setTimeout(() => setSuccess(false), 3000);
+            } else {
+              throw new Error("Réponse serveur vide");
+            }
+          } catch (uploadErr) {
+            console.warn("[upload-photo] Fallback local DataURL:", uploadErr);
+            toast.warning("Photo conservée en local (serveur non joignable)", { id: uploadToast });
+          }
+        } catch (err: any) {
+          toast.error("Erreur d'optimisation de l'image");
+        } finally {
+          setUploading(false);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  if (buttonOnly) {
+    return (
+      <label className={`inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer select-none ${className}`}>
+        {uploading ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Téléversement...</span>
+          </>
+        ) : success ? (
+          <>
+            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="text-emerald-700 dark:text-emerald-400">Photo prête !</span>
+          </>
+        ) : (
+          <>
+            <Upload className="h-3.5 w-3.5" />
+            <span>📁 Choisir un fichier...</span>
+          </>
+        )}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/jpg"
+          className="sr-only"
+          disabled={uploading}
+          onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+        />
+      </label>
+    );
+  }
+
+  return (
+    <label
+      className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary/60 transition-all p-4 cursor-pointer text-center group select-none ${uploading ? "opacity-75 pointer-events-none" : ""} ${className}`}
+    >
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/jpg"
+        className="sr-only"
+        disabled={uploading}
+        onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+        }}
+      />
+      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary mb-2 group-hover:scale-110 transition-transform">
+        {uploading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        ) : success ? (
+          <Check className="h-5 w-5 text-emerald-600" />
+        ) : (
+          <Upload className="h-5 w-5" />
+        )}
+      </div>
+      <p className="text-xs font-bold text-foreground">
+        {uploading ? "Optimisation et téléversement en cours..." : "Cliquer ici pour importer une photo locale"}
+      </p>
+      <p className="text-[11px] text-muted-foreground mt-0.5">
+        JPG, PNG, WEBP — max 5 Mo (optimisé auto en WebP)
+      </p>
+    </label>
+  );
+}
+
 
 export function Markets() {
   const ref = useRef();
@@ -244,26 +394,46 @@ export function Markets() {
               <input className={`mt-1 ${input}`} value={edit.market_days ?? ""} onChange={(e) => setEdit({ ...edit, market_days: e.target.value })} placeholder="Lundi, Jeudi" />
             </label>
 
-            {/* ─── Champ URL Photo ─── */}
-            <label className="text-sm font-medium md:col-span-2">
-              <span className="flex items-center gap-1.5 mb-1">
-                <Image className="h-3.5 w-3.5 text-primary" />
-                URL de la photo (Unsplash, HTTP...)
-              </span>
-              <input
-                className={`mt-1 ${input} font-mono text-xs`}
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-              />
-              {MARKET_IMAGES[edit.name ?? ""] && (
-                <button type="button" onClick={() => setPhotoUrl(MARKET_IMAGES[edit.name!])}
-                  className="mt-1 text-xs text-primary underline"
-                >
-                  Utiliser la photo par défaut
-                </button>
-              )}
-            </label>
+            {/* ─── Champ URL Photo & Upload de fichier ─── */}
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-sm font-medium block">
+                <span className="flex items-center justify-between gap-1.5 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Image className="h-3.5 w-3.5 text-primary" />
+                    Photo du marché
+                  </span>
+                  <PhotoDropzone
+                    type="market"
+                    name={edit.name ?? ""}
+                    onUploaded={(url) => setPhotoUrl(url)}
+                    buttonOnly
+                  />
+                </span>
+                <input
+                  className={`mt-1 ${input} font-mono text-xs`}
+                  value={photoUrl.startsWith("data:") ? "(Photo locale importée prête à enregistrer)" : photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-... ou importer un fichier"
+                />
+              </label>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {MARKET_IMAGES[edit.name ?? ""] && (
+                  <button type="button" onClick={() => setPhotoUrl(MARKET_IMAGES[edit.name!])}
+                    className="text-xs text-primary underline"
+                  >
+                    Utiliser la photo par défaut
+                  </button>
+                )}
+                {photoUrl && (
+                  <button type="button" onClick={() => setPhotoUrl("")}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    <RefreshCcw className="h-3 w-3" /> Réinitialiser
+                  </button>
+                )}
+              </div>
+            </div>
 
             {/* Prévisualisation */}
             <div className="flex flex-col gap-1">
@@ -310,67 +480,11 @@ export function Markets() {
               />
 
               {/* Option 1 : Upload direct depuis l'ordinateur/téléphone */}
-              <div className="rounded-xl border border-dashed p-3 bg-muted/20">
-                <label className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5 mb-2 cursor-pointer">
-                  <Upload className="h-4 w-4 text-primary" />
-                  Importer une photo locale (JPG, PNG, WEBP)
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/jpg"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast.error("L'image est trop volumineuse (max 5 Mo)");
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const img = document.createElement("img");
-                        img.onload = async () => {
-                          const canvas = document.createElement("canvas");
-                          const maxW = 900;
-                          let width = img.width;
-                          let height = img.height;
-                          if (width > maxW) {
-                            height = Math.round((height * maxW) / width);
-                            width = maxW;
-                          }
-                          canvas.width = width;
-                          canvas.height = height;
-                          const ctx = canvas.getContext("2d");
-                          ctx?.drawImage(img, 0, 0, width, height);
-                          const compressed = canvas.toDataURL("image/webp", 0.85);
-
-                          // Upload direct vers Supabase Storage via le backend
-                          const uploadToast = toast.loading("Téléversement vers Supabase Storage...");
-                          try {
-                            const res = await adminUploadPhoto({
-                              type: "market",
-                              name: photoModal,
-                              dataUrl: compressed,
-                            });
-                            if (res?.url) {
-                              setModalUrl(res.url);
-                              toast.success("Photo téléversée dans Supabase Storage avec succès 🚀", { id: uploadToast });
-                              return;
-                            }
-                            throw new Error("Réponse invalide du serveur");
-                          } catch (uploadErr) {
-                            console.warn("[upload-photo] Fallback local DataURL suite à:", uploadErr);
-                            setModalUrl(compressed);
-                            toast.warning("Photo enregistrée en local (serveur non joignable)", { id: uploadToast });
-                          }
-                        };
-                        img.src = event.target?.result as string;
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-                <p className="text-[11px] text-muted-foreground">Cliquez sur « Importer une photo locale » pour choisir un fichier de votre appareil.</p>
-              </div>
+              <PhotoDropzone
+                type="market"
+                name={photoModal}
+                onUploaded={(url) => setModalUrl(url)}
+              />
 
               {/* Option 2 : Lien URL */}
               <div>
@@ -602,19 +716,30 @@ export function Products() {
               Produit actif
             </label>
 
-            {/* ─── Champ URL Photo ─── */}
-            <label className="text-sm font-medium md:col-span-3">
-              <span className="flex items-center gap-1.5 mb-1">
-                <Image className="h-3.5 w-3.5 text-primary" />
-                URL de la photo (Unsplash, HTTP...)
-              </span>
-              <input
-                className={`mt-1 ${input} font-mono text-xs`}
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-              />
-              <div className="mt-1 flex gap-3">
+            {/* ─── Champ URL Photo & Upload de fichier ─── */}
+            <div className="md:col-span-3 space-y-2">
+              <label className="text-sm font-medium block">
+                <span className="flex items-center justify-between gap-1.5 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Image className="h-3.5 w-3.5 text-primary" />
+                    Photo du produit
+                  </span>
+                  <PhotoDropzone
+                    type="product"
+                    name={edit.name ?? ""}
+                    onUploaded={(url) => setPhotoUrl(url)}
+                    buttonOnly
+                  />
+                </span>
+                <input
+                  className={`mt-1 ${input} font-mono text-xs`}
+                  value={photoUrl.startsWith("data:") ? "(Photo locale importée prête à enregistrer)" : photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-... ou importer un fichier"
+                />
+              </label>
+
+              <div className="flex flex-wrap items-center gap-2">
                 {PRODUCT_IMAGES[edit.name ?? ""] && (
                   <button type="button" onClick={() => setPhotoUrl(PRODUCT_IMAGES[edit.name!])}
                     className="text-xs text-primary underline"
@@ -630,7 +755,7 @@ export function Products() {
                   </button>
                 )}
               </div>
-            </label>
+            </div>
 
             {/* Prévisualisation */}
             <div className="flex flex-col gap-1">
@@ -676,67 +801,11 @@ export function Products() {
               />
 
               {/* Option 1 : Upload direct depuis l'ordinateur/téléphone */}
-              <div className="rounded-xl border border-dashed p-3 bg-muted/20">
-                <label className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5 mb-2 cursor-pointer">
-                  <Upload className="h-4 w-4 text-primary" />
-                  Importer une photo locale (JPG, PNG, WEBP)
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/jpg"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast.error("L'image est trop volumineuse (max 5 Mo)");
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const img = document.createElement("img");
-                        img.onload = async () => {
-                          const canvas = document.createElement("canvas");
-                          const maxW = 900;
-                          let width = img.width;
-                          let height = img.height;
-                          if (width > maxW) {
-                            height = Math.round((height * maxW) / width);
-                            width = maxW;
-                          }
-                          canvas.width = width;
-                          canvas.height = height;
-                          const ctx = canvas.getContext("2d");
-                          ctx?.drawImage(img, 0, 0, width, height);
-                          const compressed = canvas.toDataURL("image/webp", 0.85);
-
-                          // Upload direct vers Supabase Storage via le backend
-                          const uploadToast = toast.loading("Téléversement vers Supabase Storage...");
-                          try {
-                            const res = await adminUploadPhoto({
-                              type: "product",
-                              name: photoModal,
-                              dataUrl: compressed,
-                            });
-                            if (res?.url) {
-                              setModalUrl(res.url);
-                              toast.success("Photo téléversée dans Supabase Storage avec succès 🚀", { id: uploadToast });
-                              return;
-                            }
-                            throw new Error("Réponse invalide du serveur");
-                          } catch (uploadErr) {
-                            console.warn("[upload-photo] Fallback local DataURL suite à:", uploadErr);
-                            setModalUrl(compressed);
-                            toast.warning("Photo enregistrée en local (serveur non joignable)", { id: uploadToast });
-                          }
-                        };
-                        img.src = event.target?.result as string;
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-                <p className="text-[11px] text-muted-foreground">Cliquez sur « Importer une photo locale » pour choisir un fichier de votre appareil.</p>
-              </div>
+              <PhotoDropzone
+                type="product"
+                name={photoModal}
+                onUploaded={(url) => setModalUrl(url)}
+              />
 
               {/* Option 2 : Lien URL */}
               <div>
