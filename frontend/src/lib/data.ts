@@ -40,6 +40,10 @@ export function useRef() {
         if (decoded.products) {
           localStorage.setItem("bfp_photo_product", JSON.stringify(decoded.products));
         }
+        if (decoded.appBranding) {
+          localStorage.setItem("bfp_app_branding", JSON.stringify(decoded.appBranding));
+          window.dispatchEvent(new Event("bfp_branding_updated"));
+        }
       } catch (e) {
         console.warn("[cloud-photos] error decoding remote config:", e);
       }
@@ -81,9 +85,15 @@ export function useSeries(productId?: string, days = 90) {
 export const fbu = (n: number | null | undefined) =>
   n == null ? "—" : `${Math.round(n).toLocaleString("fr-FR")} FBu`;
 
-export const pct = (n: number | null | undefined) => {
-  if (n == null || !isFinite(n)) return null;
-  const s = n > 0 ? `+${n.toFixed(1)}%` : `${n.toFixed(1)}%`;
+export const pct = (n: number | null | undefined, prev?: number | null | undefined) => {
+  if (n == null) return null;
+  let val = n;
+  if (prev !== undefined) {
+    if (!prev || !isFinite(prev)) return null;
+    val = ((n - prev) / prev) * 100;
+  }
+  if (!isFinite(val)) return null;
+  const s = val > 0 ? `+${val.toFixed(1)}%` : `${val.toFixed(1)}%`;
   return s;
 };
 

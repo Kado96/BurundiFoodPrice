@@ -57,8 +57,10 @@ export function ProductPhotoGrid({ products, loading }: Props) {
       {products.map((p) => {
         const imgUrl = PRODUCT_IMAGES[p.name];
         const fallback = getProductFallback(p.name);
-        const isUp = (p.delta ?? 0) > 0.5;
-        const isDown = (p.delta ?? 0) < -0.5;
+        const deltaNum = typeof p.delta === "number" ? p.delta : parseFloat(String(p.delta ?? "").replace("%", "").replace("+", ""));
+        const hasDelta = !isNaN(deltaNum) && isFinite(deltaNum);
+        const isUp = hasDelta && deltaNum > 0.5;
+        const isDown = hasDelta && deltaNum < -0.5;
 
         return (
           <Link
@@ -77,13 +79,13 @@ export function ProductPhotoGrid({ products, loading }: Props) {
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
               {/* Badge tendance */}
-              {p.delta !== null && (
+              {hasDelta && (
                 <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow ${
                   isUp ? "bg-red-500 text-white" :
                   isDown ? "bg-emerald-500 text-white" :
                   "bg-gray-500/80 text-white"
                 }`}>
-                  {isUp ? `▲ +${p.delta!.toFixed(1)}%` : isDown ? `▼ ${p.delta!.toFixed(1)}%` : "●"}
+                  {isUp ? `▲ +${deltaNum.toFixed(1)}%` : isDown ? `▼ ${deltaNum.toFixed(1)}%` : "●"}
                 </span>
               )}
             </div>

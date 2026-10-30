@@ -41,7 +41,15 @@ async function syncPhotosToSupabaseCloud() {
   try {
     const markets = loadPhotoStore(STORAGE_MARKET);
     const products = loadPhotoStore(STORAGE_PRODUCT);
-    const payload = { markets, products };
+    let appBranding = undefined;
+    try {
+      const bRaw = localStorage.getItem("bfp_app_branding");
+      if (bRaw) appBranding = JSON.parse(bRaw);
+    } catch {
+      // ignore
+    }
+    const payload: any = { markets, products };
+    if (appBranding) payload.appBranding = appBranding;
     const jsonStr = JSON.stringify(payload);
     const encoded = "__SYSTEM_PHOTOS__:" + btoa(unescape(encodeURIComponent(jsonStr)));
 
@@ -148,15 +156,15 @@ function StatusBadge({ active }: { active: boolean }) {
 
 // ─── Composant Dropzone réutilisable pour l'import de photo ─────────────────
 
-interface PhotoDropzoneProps {
-  type: "market" | "product";
+export interface PhotoDropzoneProps {
+  type: "market" | "product" | "branding";
   name: string;
   onUploaded: (url: string) => void;
   className?: string;
   buttonOnly?: boolean;
 }
 
-function PhotoDropzone({ type, name, onUploaded, className = "", buttonOnly = false }: PhotoDropzoneProps) {
+export function PhotoDropzone({ type, name, onUploaded, className = "", buttonOnly = false }: PhotoDropzoneProps) {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
 

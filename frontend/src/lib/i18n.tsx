@@ -66,6 +66,7 @@ export const dict = {
   usersTab: { fr: "Utilisateurs", rn: "Abakoresha", en: "Users" },
   marketsTab: { fr: "Marchés", rn: "Amasoko", en: "Markets" },
   productsTab: { fr: "Produits", rn: "Ibidandazwa", en: "Products" },
+  brandingTab: { fr: "Logo & Splash", rn: "Ikirango & Splash", en: "Logo & Splash" },
   exportTab: { fr: "Export", rn: "Gusohora amakuru", en: "Export" },
   superAdminRole: { fr: "super administrateur", rn: "umukuru mukuru", en: "super administrator" },
   adminRole: { fr: "administrateur", rn: "umuyobozi", en: "administrator" },

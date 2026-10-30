@@ -175,7 +175,7 @@ router.post("/observations/delete", requireAdmin, async (req, res) => {
 });
 
 const uploadPhotoSchema = z.object({
-  type: z.enum(["market", "product"]),
+  type: z.enum(["market", "product", "branding"]),
   name: z.string().trim().min(1).max(150),
   dataUrl: z.string().min(10),
 });

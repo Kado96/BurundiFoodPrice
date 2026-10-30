@@ -81,7 +81,7 @@ export async function adminDeleteObservations(body: {
 }
 
 export async function adminUploadPhoto(body: {
-  type: "market" | "product";
+  type: "market" | "product" | "branding";
   name: string;
   dataUrl: string;
 }) {

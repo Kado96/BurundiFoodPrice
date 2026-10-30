@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Menu, Wheat, X, Globe, User, Shield, LogOut } from "lucide-react";
 import { useI18n, type Lang, type TKey } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { useAppBranding } from "@/lib/branding";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ const NAV: { to: string; k: TKey }[] = [
 export function SiteHeader() {
   const { t, lang, setLang } = useI18n();
   const { user, isStaff } = useAuth();
+  const { branding } = useAppBranding();
   const [open, setOpen] = useState(false);
   const nav = useNavigate();
   const linkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors";
@@ -28,11 +30,28 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6">
         {/* Logo de la plateforme */}
         <Link to="/" onClick={() => setOpen(false)} className="flex items-center gap-2 shrink-0">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-            <Wheat className="h-5 w-5" />
-          </span>
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.appName || "Logo"}
+              className="h-9 w-9 rounded-lg object-cover shadow-xs"
+            />
+          ) : (
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs">
+              <Wheat className="h-5 w-5" />
+            </span>
+          )}
           <span className="font-display text-base sm:text-lg font-bold leading-tight tracking-tight">
-            Burundi <span className="text-primary">Food Price</span>
+            {branding.appName ? (
+              <>
+                {branding.appName.split(" ")[0]}{" "}
+                <span className="text-primary">{branding.appName.split(" ").slice(1).join(" ")}</span>
+              </>
+            ) : (
+              <>
+                Burundi <span className="text-primary">Food Price</span>
+              </>
+            )}
           </span>
         </Link>
 

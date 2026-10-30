@@ -116,7 +116,9 @@ function AuthPage() {
   return (
     <main className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 px-4 py-8 md:grid-cols-2 md:py-12">
       <section className="hidden md:block">
-        <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs"><Wheat className="h-6 w-6" /></span>
+        <span className="grid h-12 w-12 place-items-center rounded-xl bg-card border shadow-xs overflow-hidden">
+          <img src="/logo-icon.png" alt="Burundi Food Price" className="h-full w-full object-contain" />
+        </span>
         <h1 className="mt-6 text-4xl font-bold tracking-tight">{t("authTitle")}</h1>
         <p className="mt-3 text-muted-foreground">{t("authSub")}</p>
         <ul className="mt-8 space-y-4 text-sm">
@@ -156,7 +158,9 @@ function AuthPage() {
 
         <form onSubmit={submit} className="rounded-xl border bg-card p-6 shadow-sm md:p-8">
           <div className="mb-4 flex items-center gap-2 md:hidden">
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground"><Wheat className="h-4 w-4" /></span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-card border shadow-xs overflow-hidden">
+              <img src="/logo-icon.png" alt="Burundi Food Price" className="h-full w-full object-contain" />
+            </span>
             <span className="font-display font-bold text-foreground">Burundi Food Price</span>
           </div>
           <h2 className="text-2xl font-bold">{mode === "in" ? t("signInTitle") : t("createAccountTitle")}</h2>

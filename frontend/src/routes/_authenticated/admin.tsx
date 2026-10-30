@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BarChart3, CheckSquare, Database, Download, Package, Store, Users } from "lucide-react";
+import { BarChart3, CheckSquare, Database, Download, Package, Store, Users, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { Page, PageTitle } from "@/components/bits";
@@ -12,6 +12,7 @@ import { AgentTracking } from "@/components/admin/AgentTracking";
 import { Markets, Products } from "@/components/admin/Catalog";
 import { ExportPanel } from "@/components/admin/ExportPanel";
 import { DataManagement } from "@/components/admin/DataManagement";
+import { AppBrandingAdmin } from "@/components/admin/AppBranding";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [
@@ -34,6 +35,7 @@ const TABS: { k: string; lKey: TKey; i: typeof BarChart3 }[] = [
   { k: "agents", lKey: "usersTab", i: Users },
   { k: "markets", lKey: "marketsTab", i: Store },
   { k: "products", lKey: "productsTab", i: Package },
+  { k: "branding", lKey: "brandingTab", i: Sparkles },
   { k: "export", lKey: "exportTab", i: Download },
 ];
 
@@ -49,12 +51,21 @@ function AdminPage() {
       <Link to="/agent" className="mt-4 inline-block text-primary underline">{t("goToAgentSpace")}</Link>
     </div></Page>
   );
-  const visible = TABS.filter((t) => isAdmin || !["agents", "markets", "products"].includes(t.k));
+  const visible = TABS.filter((t) => isAdmin || !["agents", "markets", "products", "branding"].includes(t.k));
   const roleText = roles.includes("super_admin") ? t("superAdminRole") : isAdmin ? t("adminRole") : t("supervisorRole");
 
   return (
     <Page>
-      <PageTitle title={t("admin")} sub={`${t("connectedAs")} ${roleText}`} />
+      <div className="flex items-center gap-3 mb-4">
+        <img
+          src="/logo-icon.png"
+          alt="Burundi Food Price"
+          className="h-10 w-10 rounded-xl object-contain shadow-xs border bg-card p-1"
+        />
+        <div>
+          <PageTitle title={t("admin")} sub={`${t("connectedAs")} ${roleText}`} />
+        </div>
+      </div>
       <div className="mb-6 flex gap-1 overflow-x-auto rounded-lg border bg-card p-1">
         {visible.map((tabItem) => (
           <button key={tabItem.k} onClick={() => setTab(tabItem.k)}
@@ -70,6 +81,7 @@ function AdminPage() {
       {tab === "agents" && isAdmin && <Agents />}
       {tab === "markets" && isAdmin && <Markets />}
       {tab === "products" && isAdmin && <Products />}
+      {tab === "branding" && isAdmin && <AppBrandingAdmin />}
       {tab === "export" && <ExportPanel />}
     </Page>
   );
