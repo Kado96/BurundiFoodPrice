@@ -42,12 +42,13 @@ function StatsPage() {
       const cur = avg(x?.cur ?? []), prev = avg(x?.prev ?? []);
       const prov: Record<string, number | string> = { name: p.name };
       Object.entries(x?.prov ?? {}).forEach(([k, v]) => (prov[k] = Math.round(avg(v)!)));
-      return { p, cur, prev, ch: cur != null ? pct(cur, prev) : null, prov };
+      const ch = cur != null && prev ? ((cur - prev) / prev) * 100 : null;
+      return { p, cur, prev, ch, prov };
     }).filter((x) => x.cur != null);
-    const changes = prods.filter((x) => x.ch != null);
-    const index = changes.length ? changes.reduce((a, x) => a + x.ch!, 0) / changes.length : null;
-    const sorted = [...changes].sort((a, b) => b.ch! - a.ch!);
-    return { prods, index, up: sorted.slice(0, 5), down: sorted.slice(-5).reverse(), provinces: d.provinces.map((p) => p.name), upN: changes.filter((x) => x.ch! > 0.5).length, downN: changes.filter((x) => x.ch! < -0.5).length };
+    const changes = prods.filter((x): x is typeof x & { ch: number } => typeof x.ch === "number" && isFinite(x.ch));
+    const index = changes.length ? changes.reduce((a, x) => a + x.ch, 0) / changes.length : null;
+    const sorted = [...changes].sort((a, b) => b.ch - a.ch);
+    return { prods, index, up: sorted.slice(0, 5), down: sorted.slice(-5).reverse(), provinces: d.provinces.map((p) => p.name), upN: changes.filter((x) => x.ch > 0.5).length, downN: changes.filter((x) => x.ch < -0.5).length };
   }, [d, latest.data]);
 
   if (!s) return <Page><p className="text-muted-foreground">{t("loading")}</p></Page>;
@@ -94,7 +95,7 @@ function StatsPage() {
                   </div>
                   <div className="text-right">
                     <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                      +{x.ch!.toFixed(1)}%
+                      +{Math.abs(Number(x.ch)).toFixed(1)}%
                     </span>
                   </div>
                 </div>
@@ -129,7 +130,7 @@ function StatsPage() {
                   </div>
                   <div className="text-right">
                     <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                      {x.ch!.toFixed(1)}%
+                      -{Math.abs(Number(x.ch)).toFixed(1)}%
                     </span>
                   </div>
                 </div>

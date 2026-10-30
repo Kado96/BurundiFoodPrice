@@ -30,8 +30,13 @@ export function Dashboard({ onGoValidate }: { onGoValidate: () => void }) {
     const stale = d.markets.filter((m) => m.active && (!lastBy[m.id] || lastBy[m.id]! < limit));
     const mk = Object.fromEntries(d.markets.map((m) => [m.id, m.name]));
     const pr = Object.fromEntries(d.products.map((p) => [p.id, p.name]));
-    const moves = latest.data.map((l) => ({ ...l, ch: pct(l.unit_price, l.prev_price) }))
-      .filter((l) => l.ch != null && Math.abs(l.ch) > 20).sort((a, b) => Math.abs(b.ch!) - Math.abs(a.ch!)).slice(0, 8);
+    const moves = latest.data.map((l) => {
+      const ch = l.prev_price ? ((Number(l.unit_price) - Number(l.prev_price)) / Number(l.prev_price)) * 100 : null;
+      return { ...l, ch };
+    })
+      .filter((l) => typeof l.ch === "number" && isFinite(l.ch) && Math.abs(l.ch) > 20)
+      .sort((a, b) => Math.abs(b.ch!) - Math.abs(a.ch!))
+      .slice(0, 8);
     return { stale, lastBy, mk, pr, moves };
   }, [d, latest.data]);
 
