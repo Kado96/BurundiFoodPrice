@@ -20,6 +20,7 @@ import {
   getMarketPhoto,
   getProductFallback,
 } from "@/lib/images";
+import { adminUploadPhoto } from "@/lib/adminApi";
 
 const input = "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
@@ -327,7 +328,7 @@ export function Markets() {
                       const reader = new FileReader();
                       reader.onload = (event) => {
                         const img = document.createElement("img");
-                        img.onload = () => {
+                        img.onload = async () => {
                           const canvas = document.createElement("canvas");
                           const maxW = 900;
                           let width = img.width;
@@ -341,8 +342,26 @@ export function Markets() {
                           const ctx = canvas.getContext("2d");
                           ctx?.drawImage(img, 0, 0, width, height);
                           const compressed = canvas.toDataURL("image/webp", 0.85);
-                          setModalUrl(compressed);
-                          toast.success("Photo chargée et optimisée ✅");
+
+                          // Upload direct vers Supabase Storage via le backend
+                          const uploadToast = toast.loading("Téléversement vers Supabase Storage...");
+                          try {
+                            const res = await adminUploadPhoto({
+                              type: "market",
+                              name: photoModal,
+                              dataUrl: compressed,
+                            });
+                            if (res?.url) {
+                              setModalUrl(res.url);
+                              toast.success("Photo téléversée dans Supabase Storage avec succès 🚀", { id: uploadToast });
+                              return;
+                            }
+                            throw new Error("Réponse invalide du serveur");
+                          } catch (uploadErr) {
+                            console.warn("[upload-photo] Fallback local DataURL suite à:", uploadErr);
+                            setModalUrl(compressed);
+                            toast.warning("Photo enregistrée en local (serveur non joignable)", { id: uploadToast });
+                          }
                         };
                         img.src = event.target?.result as string;
                       };
@@ -675,7 +694,7 @@ export function Products() {
                       const reader = new FileReader();
                       reader.onload = (event) => {
                         const img = document.createElement("img");
-                        img.onload = () => {
+                        img.onload = async () => {
                           const canvas = document.createElement("canvas");
                           const maxW = 900;
                           let width = img.width;
@@ -689,8 +708,26 @@ export function Products() {
                           const ctx = canvas.getContext("2d");
                           ctx?.drawImage(img, 0, 0, width, height);
                           const compressed = canvas.toDataURL("image/webp", 0.85);
-                          setModalUrl(compressed);
-                          toast.success("Photo du produit chargée et optimisée ✅");
+
+                          // Upload direct vers Supabase Storage via le backend
+                          const uploadToast = toast.loading("Téléversement vers Supabase Storage...");
+                          try {
+                            const res = await adminUploadPhoto({
+                              type: "product",
+                              name: photoModal,
+                              dataUrl: compressed,
+                            });
+                            if (res?.url) {
+                              setModalUrl(res.url);
+                              toast.success("Photo téléversée dans Supabase Storage avec succès 🚀", { id: uploadToast });
+                              return;
+                            }
+                            throw new Error("Réponse invalide du serveur");
+                          } catch (uploadErr) {
+                            console.warn("[upload-photo] Fallback local DataURL suite à:", uploadErr);
+                            setModalUrl(compressed);
+                            toast.warning("Photo enregistrée en local (serveur non joignable)", { id: uploadToast });
+                          }
                         };
                         img.src = event.target?.result as string;
                       };

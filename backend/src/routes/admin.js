@@ -174,4 +174,68 @@ router.post("/observations/delete", requireAdmin, async (req, res) => {
   }
 });
 
+const uploadPhotoSchema = z.object({
+  type: z.enum(["market", "product"]),
+  name: z.string().trim().min(1).max(150),
+  dataUrl: z.string().min(10),
+});
+
+function slugify(text) {
+  return text
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+router.post("/upload-photo", requireAdmin, async (req, res) => {
+  try {
+    const { type, name, dataUrl } = uploadPhotoSchema.parse(req.body);
+
+    const matches = dataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: "Format Data URL invalide (attendu: data:image/...;base64,...)" });
+    }
+
+    const contentType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, "base64");
+
+    const slug = slugify(name) || "photo";
+    const extension = contentType.includes("webp") ? "webp" : "jpg";
+    const path = `catalogs/${type}s/${slug}_${Date.now()}.${extension}`;
+
+    const admin = createAdminClient();
+    const { error: uploadError } = await admin.storage
+      .from("photos")
+      .upload(path, buffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("[upload-photo] storage upload error:", uploadError);
+      return res.status(500).json({ error: uploadError.message || "Erreur lors du téléversement" });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/photos/${path}`;
+
+    return res.json({
+      ok: true,
+      url: publicUrl,
+      path,
+    });
+  } catch (err) {
+    if (err?.name === "ZodError") {
+      return res.status(400).json({ error: err.errors?.[0]?.message || "Données invalides" });
+    }
+    console.error("[upload-photo]", err);
+    return res.status(500).json({ error: err.message || "Erreur serveur" });
+  }
+});
+
 export default router;

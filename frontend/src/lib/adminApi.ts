@@ -79,3 +79,14 @@ export async function adminDeleteObservations(body: {
     body: JSON.stringify(body),
   });
 }
+
+export async function adminUploadPhoto(body: {
+  type: "market" | "product";
+  name: string;
+  dataUrl: string;
+}) {
+  return api<{ ok: true; url: string; path: string }>("/api/admin/upload-photo", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
