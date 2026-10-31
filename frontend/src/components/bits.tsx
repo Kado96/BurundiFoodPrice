@@ -57,4 +57,8 @@ export function Stat({ label, value, hint }: { label: string; value: ReactNode; 
   );
 }
 
-export const Page = ({ children }: { children: ReactNode }) => <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>;
+export const Page = ({ children }: { children: ReactNode }) => (
+  <main className="mx-auto w-full max-w-7xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 overflow-x-hidden">
+    {children}
+  </main>
+);

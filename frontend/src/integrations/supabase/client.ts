@@ -22,19 +22,26 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
     headers.set('apikey', supabaseKey);
 
-    // Stratégie de résilience réseau : 3 tentatives automatiques en cas de micro-coupure socket
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    // Stratégie de résilience réseau avancée : 4 tentatives avec backoff exponentiel
+    for (let attempt = 1; attempt <= 4; attempt++) {
       try {
-        return await fetch(input, { ...init, headers });
+        const response = await fetch(input, { ...init, headers });
+        return response;
       } catch (err: any) {
-        const msg = String(err?.message || "");
-        const isSocketError =
-          msg.includes("ERR_SOCKET_NOT_CONNECTED") ||
-          msg.includes("Failed to fetch") ||
-          msg.includes("NetworkError");
+        const msg = String(err?.message || "").toLowerCase();
+        const isNetworkOrConnectionError =
+          msg.includes("err_connection_closed") ||
+          msg.includes("err_socket_not_connected") ||
+          msg.includes("err_name_not_resolved") ||
+          msg.includes("failed to fetch") ||
+          msg.includes("networkerror") ||
+          msg.includes("aborted") ||
+          msg.includes("timeout") ||
+          msg.includes("econnreset");
 
-        if (attempt < 3 && isSocketError) {
-          await new Promise((r) => setTimeout(r, 600 * attempt));
+        if (attempt < 4 && isNetworkOrConnectionError) {
+          // Attente progressive (500ms, 1200ms, 2500ms) avant retry
+          await new Promise((r) => setTimeout(r, 400 * Math.pow(2, attempt - 1)));
           continue;
         }
         throw err;

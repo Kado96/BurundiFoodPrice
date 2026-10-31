@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Image, RefreshCcw, CheckCircle, XCircle, Upload, Loader2, Check } from "lucide-react";
+import { Pencil, Plus, Image, RefreshCcw, CheckCircle, XCircle, Upload, Loader2, Check, Trash2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRef, type Market, type Product } from "@/lib/data";
 import {
@@ -354,6 +354,18 @@ export function Markets() {
     qc.invalidateQueries({ queryKey: ["ref"] });
   }
 
+  async function deleteMarket(m: Market) {
+    if (!window.confirm(`Confirmer la suppression définitive du marché "${m.name}" ?\nAttention : cette action peut impacter les observations associées.`)) return;
+    const { error } = await supabase.from("markets").delete().eq("id", m.id);
+    if (error) {
+      toast.error(`Impossible de supprimer le marché : ${error.message}`);
+      return;
+    }
+    resetPhoto(m.name);
+    toast.success(`Marché "${m.name}" supprimé avec succès`);
+    qc.invalidateQueries({ queryKey: ["ref"] });
+  }
+
   return (
     <div className="space-y-6">
       {/* Bouton nouveau marché */}
@@ -608,6 +620,13 @@ export function Markets() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
+                    <button
+                      onClick={() => deleteMarket(m)}
+                      className="rounded-lg border border-destructive/20 p-1.5 text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Supprimer définitivement le marché"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -660,6 +679,18 @@ export function Products() {
 
     toast.success("Produit enregistré ✅");
     setEdit(null);
+    qc.invalidateQueries({ queryKey: ["ref"] });
+  }
+
+  async function deleteProduct(p: Product) {
+    if (!window.confirm(`Confirmer la suppression définitive du produit "${p.name}" ?\nAttention : cette action peut impacter les observations associées.`)) return;
+    const { error } = await supabase.from("products").delete().eq("id", p.id);
+    if (error) {
+      toast.error(`Impossible de supprimer le produit : ${error.message}`);
+      return;
+    }
+    resetPhoto(p.name);
+    toast.success(`Produit "${p.name}" supprimé avec succès`);
     qc.invalidateQueries({ queryKey: ["ref"] });
   }
 
@@ -924,6 +955,13 @@ export function Products() {
                       title="Modifier les détails du produit"
                     >
                       <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteProduct(p)}
+                      className="rounded-lg border border-destructive/20 p-1.5 text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Supprimer définitivement le produit"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </td>

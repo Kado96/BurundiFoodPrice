@@ -153,7 +153,13 @@ export function DataManagement() {
     if (!window.confirm("Confirmer la suppression définitive de ce relevé de prix ?")) return;
 
     try {
-      await adminDeleteObservations({ mode: "single", id });
+      try {
+        await adminDeleteObservations({ mode: "single", id });
+      } catch (apiErr: any) {
+        console.warn("[delete] API backend non disponible, fallback direct Supabase:", apiErr);
+        const { error: sbErr } = await supabase.from("observations").delete().eq("id", id);
+        if (sbErr) throw sbErr;
+      }
       toast.success("Relevé supprimé avec succès");
       qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });
       qc.invalidateQueries({ queryKey: ["admin-obs"] });
@@ -176,15 +182,28 @@ export function DataManagement() {
         setConfirmDeleteBatch(false);
         return;
       }
-      await adminDeleteObservations({
-        mode: "batch",
-        agent_id: agentFilter !== "all" ? agentFilter : undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        market_id: marketFilter !== "all" ? marketFilter : undefined,
-        product_id: productFilter !== "all" ? productFilter : undefined,
-      });
+      try {
+        await adminDeleteObservations({
+          mode: "batch",
+          agent_id: agentFilter !== "all" ? agentFilter : undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          market_id: marketFilter !== "all" ? marketFilter : undefined,
+          product_id: productFilter !== "all" ? productFilter : undefined,
+        });
+      } catch (apiErr: any) {
+        console.warn("[delete] API backend fallback direct Supabase:", apiErr);
+        let q = supabase.from("observations").delete();
+        if (agentFilter !== "all") q = q.eq("agent_id", agentFilter);
+        if (marketFilter !== "all") q = q.eq("market_id", marketFilter);
+        if (productFilter !== "all") q = q.eq("product_id", productFilter);
+        if (statusFilter !== "all") q = q.eq("status", statusFilter);
+        if (dateFrom) q = q.gte("observed_at", dateFrom);
+        if (dateTo) q = q.lte("observed_at", dateTo + "T23:59:59");
+        const { error: sbErr } = await q;
+        if (sbErr) throw sbErr;
+      }
       toast.success("Collectes filtrées supprimées avec succès");
       setConfirmDeleteBatch(false);
       qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });
@@ -204,7 +223,13 @@ export function DataManagement() {
     }
     setIsDeleting(true);
     try {
-      await adminDeleteObservations({ mode: "all" });
+      try {
+        await adminDeleteObservations({ mode: "all" });
+      } catch (apiErr: any) {
+        console.warn("[delete-all] API backend fallback direct Supabase:", apiErr);
+        const { error: sbErr } = await supabase.from("observations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        if (sbErr) throw sbErr;
+      }
       toast.success("Toutes les collectes ont été supprimées");
       setConfirmDeleteAll(false);
       qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });

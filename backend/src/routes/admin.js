@@ -140,7 +140,10 @@ const deleteSchema = z.object({
   date_to: z.string().optional(),
 });
 
-router.post("/observations/delete", requireAdmin, async (req, res) => {
+router.all("/observations/delete", requireAdmin, async (req, res) => {
+  if (req.method !== "POST" && req.method !== "DELETE") {
+    return res.status(405).json({ error: "Méthode non autorisée. Utilisez POST ou DELETE." });
+  }
   try {
     const body = deleteSchema.parse(req.body);
     const admin = createAdminClient();
