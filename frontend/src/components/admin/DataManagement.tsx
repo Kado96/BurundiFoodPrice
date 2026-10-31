@@ -764,12 +764,12 @@ export function DataManagement() {
             <p className="mt-3 text-xs font-semibold text-destructive">
               Cette action est irréversible et supprimera ces relevés de la base de données.
             </p>
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setConfirmDeleteBatch(false)}
-                className="h-9 rounded-md border px-4 text-sm font-medium hover:bg-secondary"
+                className="w-full sm:w-auto h-10 sm:h-9 rounded-md border px-4 text-sm font-medium hover:bg-secondary text-center"
               >
                 Annuler
               </button>
@@ -777,7 +777,7 @@ export function DataManagement() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteBatch}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex h-10 sm:h-9 items-center justify-center gap-1.5 rounded-md bg-destructive px-4 text-sm font-semibold text-destructive-foreground disabled:opacity-50 text-center"
               >
                 {isDeleting ? "Suppression en cours…" : "Confirmer la suppression"}
               </button>
@@ -788,24 +788,24 @@ export function DataManagement() {
 
       {/* Confirmation de suppression totale (TOUTES LES COLLECTES) */}
       {confirmDeleteAll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-lg border-2 border-destructive bg-card p-6 shadow-2xl animate-in fade-in">
-            <div className="flex items-center gap-3 text-destructive">
-              <AlertTriangle className="h-7 w-7 shrink-0" />
-              <h3 className="text-lg font-bold">Suppression totale de toutes les données</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-3 sm:p-4">
+          <div className="w-full max-w-lg rounded-xl border-2 border-destructive bg-card p-4 sm:p-6 shadow-2xl animate-in fade-in">
+            <div className="flex items-center gap-2.5 sm:gap-3 text-destructive">
+              <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
+              <h3 className="text-base sm:text-lg font-bold leading-tight">Suppression totale de toutes les données</h3>
             </div>
-            <p className="mt-3 text-sm text-foreground">
+            <p className="mt-3 text-sm text-foreground leading-snug">
               ⚠️ <b>ATTENTION :</b> Vous vous apprêtez à supprimer <b>TOUTES LES COLLECTES DE PRIX</b> enregistrées dans l'application.
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
               Toutes les observations de tous les agents, à toutes les dates et sur tous les marchés seront effacées de façon définitive.
             </p>
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setConfirmDeleteAll(false)}
-                className="h-9 rounded-md border px-4 text-sm font-medium hover:bg-secondary"
+                className="w-full sm:w-auto h-10 sm:h-9 rounded-md border px-4 text-xs sm:text-sm font-medium hover:bg-secondary text-center"
               >
                 Annuler immédiatement
               </button>
@@ -813,7 +813,7 @@ export function DataManagement() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteAll}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+                className="w-full sm:w-auto inline-flex h-10 sm:h-9 items-center justify-center gap-1.5 rounded-md bg-destructive px-4 text-xs sm:text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 text-center"
               >
                 {isDeleting ? "Suppression totale…" : "Oui, tout supprimer définitivement"}
               </button>

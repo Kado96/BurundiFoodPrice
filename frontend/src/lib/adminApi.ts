@@ -1,9 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/** URL API Render. Vide en local = proxy Vite /api → :4000 */
+/** URL API Render. En local = proxy Vite /api → :4000 ; En prod Vercel = Render API */
 function apiBase(): string {
-  const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || "";
-  return raw.replace(/\/$/, "");
+  const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (raw) return raw.replace(/\/$/, "");
+  
+  // Si exécuté sur Vercel sans VITE_API_URL défini, pointer automatiquement vers l'API Render
+  if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
+    return "https://burundi-food-price-api.onrender.com";
+  }
+  return "";
 }
 
 async function bearer(): Promise<string> {
