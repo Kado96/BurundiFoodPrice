@@ -193,7 +193,7 @@ export function DataManagement() {
           product_id: productFilter !== "all" ? productFilter : undefined,
         });
       } catch (apiErr: any) {
-        console.warn("[delete] API backend fallback direct Supabase:", apiErr);
+        console.warn("[delete] API backend non disponible, fallback direct Supabase:", apiErr);
         let q = supabase.from("observations").delete();
         if (agentFilter !== "all") q = q.eq("agent_id", agentFilter);
         if (marketFilter !== "all") q = q.eq("market_id", marketFilter);
@@ -226,8 +226,12 @@ export function DataManagement() {
       try {
         await adminDeleteObservations({ mode: "all" });
       } catch (apiErr: any) {
-        console.warn("[delete-all] API backend fallback direct Supabase:", apiErr);
-        const { error: sbErr } = await supabase.from("observations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        console.warn("[delete-all] API backend non disponible, fallback direct Supabase:", apiErr);
+        // PostgREST exige un filtre pour autoriser la suppression sans WHERE clause
+        const { error: sbErr } = await supabase
+          .from("observations")
+          .delete()
+          .not("id", "is", null);
         if (sbErr) throw sbErr;
       }
       toast.success("Toutes les collectes ont été supprimées");
