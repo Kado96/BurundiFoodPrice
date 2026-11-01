@@ -22,11 +22,13 @@ export const Route = createFileRoute("/carte")({
 });
 
 function CartePage() {
-  const { t, tp } = useI18n();
+  const { t, tp, tm } = useI18n();
   const ref = useRef();
   const latest = useLatest();
-  // Multi-sélection des provinces et produits
+  // Multi-sélection des provinces, communes, marchés et produits
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
+  const [selectedCommunes, setSelectedCommunes] = useState<string[]>([]);
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const d = ref.data;
 
@@ -38,6 +40,35 @@ function CartePage() {
       color: PROVINCE_COLORS[p.name],
     }));
   }, [d]);
+
+  // Options pour MultiSelect Communes (filtrées dynamiquement par province si sélectionnée)
+  const communeOptions = useMemo(() => {
+    const set = new Set<string>();
+    (d?.markets ?? []).forEach((m) => {
+      if (!m.commune) return;
+      if (selectedProvinces.length === 0 || selectedProvinces.includes(m.province_id)) {
+        set.add(m.commune);
+      }
+    });
+    return Array.from(set).sort().map((c) => ({
+      value: c,
+      label: c,
+    }));
+  }, [d, selectedProvinces]);
+
+  // Options pour MultiSelect Marchés (filtrés dynamiquement par province et commune)
+  const marketOptions = useMemo(() => {
+    return (d?.markets ?? [])
+      .filter((m) => {
+        const matchesProv = selectedProvinces.length === 0 || selectedProvinces.includes(m.province_id);
+        const matchesCommune = selectedCommunes.length === 0 || (m.commune && selectedCommunes.includes(m.commune));
+        return matchesProv && matchesCommune;
+      })
+      .map((m) => ({
+        value: m.id,
+        label: tm(m.name),
+      }));
+  }, [d, selectedProvinces, selectedCommunes, tm]);
 
   // Options pour MultiSelect Produits
   const productOptions = useMemo(() => {
@@ -64,11 +95,15 @@ function CartePage() {
     return d.markets.filter((m) => {
       // Filtre province (si aucune province sélectionnée, toutes sont acceptées)
       const matchesProvince = selectedProvinces.length === 0 || selectedProvinces.includes(m.province_id);
+      // Filtre commune
+      const matchesCommune = selectedCommunes.length === 0 || (m.commune && selectedCommunes.includes(m.commune));
+      // Filtre marché spécifique
+      const matchesMarket = selectedMarkets.length === 0 || selectedMarkets.includes(m.id);
       // Filtre produit (si aucun produit sélectionné, tous sont acceptés)
       const matchesProduct = !withProductsSet || withProductsSet.has(m.id);
-      return matchesProvince && matchesProduct;
+      return matchesProvince && matchesCommune && matchesMarket && matchesProduct;
     });
-  }, [d, selectedProvinces, selectedProducts, latest.data]);
+  }, [d, selectedProvinces, selectedCommunes, selectedMarkets, selectedProducts, latest.data]);
 
   // Filtrage des relevés de prix affichés dans les popups
   const rows = useMemo(() => {
@@ -79,33 +114,59 @@ function CartePage() {
 
   return (
     <Page>
-      <PageTitle title={t("mapPageTitle")} sub={t("mapPageSub")}>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          {/* MultiSelect Provinces */}
-          <div className="w-full sm:w-64">
-            <MultiSelect
-              options={provinceOptions}
-              selected={selectedProvinces}
-              onChange={setSelectedProvinces}
-              placeholder={t("allProvinces")}
-              allLabel={t("allProvinces")}
-              maxBadges={2}
-            />
-          </div>
+      <div className="relative z-30">
+        <PageTitle title={t("mapPageTitle")} sub={t("mapPageSub")}>
+          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+            {/* MultiSelect Provinces */}
+            <div className="w-full sm:w-48 lg:w-52">
+              <MultiSelect
+                options={provinceOptions}
+                selected={selectedProvinces}
+                onChange={setSelectedProvinces}
+                placeholder={t("allProvinces")}
+                allLabel={t("allProvinces")}
+                maxBadges={1}
+              />
+            </div>
 
-          {/* MultiSelect Produits */}
-          <div className="w-full sm:w-64">
-            <MultiSelect
-              options={productOptions}
-              selected={selectedProducts}
-              onChange={setSelectedProducts}
-              placeholder={t("allProducts")}
-              allLabel={t("allProducts")}
-              maxBadges={2}
-            />
+            {/* MultiSelect Communes */}
+            <div className="w-full sm:w-48 lg:w-52">
+              <MultiSelect
+                options={communeOptions}
+                selected={selectedCommunes}
+                onChange={setSelectedCommunes}
+                placeholder={t("allCommunes")}
+                allLabel={t("allCommunes")}
+                maxBadges={1}
+              />
+            </div>
+
+            {/* MultiSelect Marchés */}
+            <div className="w-full sm:w-48 lg:w-52">
+              <MultiSelect
+                options={marketOptions}
+                selected={selectedMarkets}
+                onChange={setSelectedMarkets}
+                placeholder={t("allMarkets")}
+                allLabel={t("allMarkets")}
+                maxBadges={1}
+              />
+            </div>
+
+            {/* MultiSelect Produits */}
+            <div className="w-full sm:w-56 lg:w-60">
+              <MultiSelect
+                options={productOptions}
+                selected={selectedProducts}
+                onChange={setSelectedProducts}
+                placeholder={t("allProducts")}
+                allLabel={t("allProducts")}
+                maxBadges={1}
+              />
+            </div>
           </div>
-        </div>
-      </PageTitle>
+        </PageTitle>
+      </div>
 
       {d ? (
         <LazyMap

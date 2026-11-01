@@ -91,7 +91,14 @@ export function MultiSelect({
   };
 
   return (
-    <div className={cn("relative inline-block w-full text-left", className)} ref={containerRef}>
+    <div
+      className={cn(
+        "relative inline-block w-full text-left",
+        isOpen && "relative z-[9999]",
+        className
+      )}
+      ref={containerRef}
+    >
       {/* Trigger Button */}
       <div
         role="button"
@@ -176,7 +183,7 @@ export function MultiSelect({
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 max-h-80 w-full min-w-[240px] overflow-hidden rounded-xl border border-border bg-popover shadow-xl animate-in fade-in-0 zoom-in-95">
+        <div className="absolute z-[9999] mt-1 max-h-80 w-full min-w-[240px] overflow-hidden rounded-xl border border-border bg-popover shadow-xl animate-in fade-in-0 zoom-in-95">
           {/* Search Header */}
           <div className="border-b border-border p-2 bg-muted/20">
             <div className="relative flex items-center">

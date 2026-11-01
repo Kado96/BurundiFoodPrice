@@ -10,7 +10,7 @@ export default function MarketMap({
   const prod = Object.fromEntries(products.map((p) => [p.id, p.name]));
   return (
     <MapContainer center={[-3.38, 29.92]} zoom={8} minZoom={7} maxBounds={[[-5, 28.5], [-2, 31.3]]}
-      style={{ height, width: "100%" }} className="rounded-lg border">
+      style={{ height, width: "100%" }} className="rounded-lg border relative z-0">
       <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {markets.filter((m) => m.active).map((m) => {
         const lp = latest.filter((l) => l.market_id === m.id);

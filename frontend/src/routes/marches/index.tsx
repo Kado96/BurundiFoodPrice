@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MapPin, CalendarDays, Search, Store } from "lucide-react";
-import { useLatest, useRef, fmtDate } from "@/lib/data";
+import { useLatest, useRef, fmtDate, PROVINCE_COLORS } from "@/lib/data";
 import { Page } from "@/components/bits";
+import { MultiSelect } from "@/components/MultiSelect";
 import { useI18n } from "@/lib/i18n";
 import { getMarketPhoto } from "@/lib/images";
 
@@ -22,10 +23,36 @@ function MarchesPage() {
   const { t, tm, td } = useI18n();
   const ref = useRef();
   const latest = useLatest();
-  const [prov, setProv] = useState("");
+  const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
+  const [selectedCommunes, setSelectedCommunes] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const d = ref.data;
   const provName = useMemo(() => Object.fromEntries((d?.provinces ?? []).map((p) => [p.id, p.name])), [d]);
+
+  // Options pour MultiSelect Provinces
+  const provinceOptions = useMemo(() => {
+    return (d?.provinces ?? []).map((p) => ({
+      value: p.id,
+      label: p.name,
+      color: PROVINCE_COLORS[p.name],
+    }));
+  }, [d]);
+
+  // Options pour MultiSelect Communes (filtrées dynamiquement selon les provinces sélectionnées)
+  const communeOptions = useMemo(() => {
+    const set = new Set<string>();
+    (d?.markets ?? []).forEach((m) => {
+      if (!m.commune) return;
+      if (selectedProvinces.length === 0 || selectedProvinces.includes(m.province_id)) {
+        set.add(m.commune);
+      }
+    });
+    return Array.from(set).sort().map((c) => ({
+      value: c,
+      label: c,
+    }));
+  }, [d, selectedProvinces]);
+
   const stats = useMemo(() => {
     const s: Record<string, { n: number; last: string }> = {};
     (latest.data ?? []).forEach((l) => {
@@ -34,20 +61,29 @@ function MarchesPage() {
     });
     return s;
   }, [latest.data]);
-  const list = (d?.markets ?? []).filter((m) => m.active && (!prov || m.province_id === prov) && m.name.toLowerCase().includes(q.toLowerCase()));
+
+  const list = useMemo(() => {
+    return (d?.markets ?? []).filter((m) => {
+      if (!m.active) return false;
+      const matchesProv = selectedProvinces.length === 0 || selectedProvinces.includes(m.province_id);
+      const matchesCommune = selectedCommunes.length === 0 || (m.commune && selectedCommunes.includes(m.commune));
+      const matchesQuery = !q.trim() || m.name.toLowerCase().includes(q.toLowerCase()) || (m.commune && m.commune.toLowerCase().includes(q.toLowerCase()));
+      return matchesProv && matchesCommune && matchesQuery;
+    });
+  }, [d, selectedProvinces, selectedCommunes, q]);
 
   return (
     <>
       {/* ═══════════════════════════════════════════════
           HERO BANNER AVEC PHOTO RÉELLE DU MARCHÉ
       ═══════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-slate-900 text-white">
+      <section className="relative overflow-visible bg-slate-900 text-white z-20">
         {/* Photo d'arrière-plan avec overlay dégradé */}
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-35"
+          className="absolute inset-0 bg-cover bg-center opacity-35 pointer-events-none"
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=1600&q=80')` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-black/50 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-black/50 to-black/30 pointer-events-none" />
 
         <div className="relative mx-auto max-w-7xl px-4 py-12 md:py-16">
           <div className="max-w-2xl">
@@ -64,8 +100,8 @@ function MarchesPage() {
           </div>
 
           {/* Barre de filtres en surimpression */}
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row max-w-2xl rounded-xl border border-white/20 bg-card/90 p-3 shadow-lg backdrop-blur-md">
-            <label htmlFor="markets-search-input" className="relative flex-1">
+          <div className="relative z-30 mt-8 flex flex-col gap-3 md:flex-row max-w-3xl rounded-xl border border-white/20 bg-card/95 p-3 shadow-lg backdrop-blur-md">
+            <label htmlFor="markets-search-input" className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <input
                 id="markets-search-input"
@@ -77,17 +113,26 @@ function MarchesPage() {
                 className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
-            <select
-              id="markets-province-filter"
-              name="markets_province"
-              aria-label={t("province")}
-              value={prov}
-              onChange={(e) => setProv(e.target.value)}
-              className="h-10 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">{t("allProvinces")}</option>
-              {d?.provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <div className="w-full md:w-56">
+              <MultiSelect
+                options={provinceOptions}
+                selected={selectedProvinces}
+                onChange={setSelectedProvinces}
+                placeholder={t("allProvinces")}
+                allLabel={t("allProvinces")}
+                maxBadges={1}
+              />
+            </div>
+            <div className="w-full md:w-56">
+              <MultiSelect
+                options={communeOptions}
+                selected={selectedCommunes}
+                onChange={setSelectedCommunes}
+                placeholder={t("allCommunes")}
+                allLabel={t("allCommunes")}
+                maxBadges={1}
+              />
+            </div>
           </div>
         </div>
       </section>
