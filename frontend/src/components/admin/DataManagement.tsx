@@ -236,9 +236,7 @@ export function DataManagement() {
       }
       toast.success("Toutes les collectes ont été supprimées");
       setConfirmDeleteAll(false);
-      qc.invalidateQueries({ queryKey: ["admin-manage-observations"] });
-      qc.invalidateQueries({ queryKey: ["admin-obs"] });
-      qc.invalidateQueries({ queryKey: ["latest"] });
+      await qc.invalidateQueries();
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la réinitialisation");
     } finally {
@@ -792,24 +790,35 @@ export function DataManagement() {
 
       {/* Confirmation de suppression totale (TOUTES LES COLLECTES) */}
       {confirmDeleteAll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-3 sm:p-4">
-          <div className="w-full max-w-lg rounded-xl border-2 border-destructive bg-card p-4 sm:p-6 shadow-2xl animate-in fade-in">
-            <div className="flex items-center gap-2.5 sm:gap-3 text-destructive">
-              <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
-              <h3 className="text-base sm:text-lg font-bold leading-tight">Suppression totale de toutes les données</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border-2 border-destructive/60 bg-card p-5 sm:p-7 shadow-2xl animate-in fade-in duration-200">
+            <div className="flex items-start sm:items-center gap-3 text-destructive">
+              <div className="rounded-xl bg-destructive/10 p-2 sm:p-2.5 shrink-0">
+                <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7" />
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                  Suppression totale de toutes les données
+                </h3>
+                <span className="text-xs font-semibold text-destructive">Action critique & irréversible</span>
+              </div>
             </div>
-            <p className="mt-3 text-sm text-foreground leading-snug">
-              ⚠️ <b>ATTENTION :</b> Vous vous apprêtez à supprimer <b>TOUTES LES COLLECTES DE PRIX</b> enregistrées dans l'application.
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              Toutes les observations de tous les agents, à toutes les dates et sur tous les marchés seront effacées de façon définitive.
-            </p>
-            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
+
+            <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-foreground space-y-2">
+              <p className="font-semibold text-destructive">
+                ⚠️ ATTENTION : Vous vous apprêtez à supprimer TOUTES LES COLLECTES DE PRIX enregistrées dans l'application.
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Toutes les observations de tous les agents, à toutes les dates et sur tous les marchés seront effacées de façon définitive. Les prix publiés sur le site public seront immédiatement remis à zéro.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3">
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setConfirmDeleteAll(false)}
-                className="w-full sm:w-auto h-10 sm:h-9 rounded-md border px-4 text-xs sm:text-sm font-medium hover:bg-secondary text-center"
+                className="w-full sm:w-auto h-11 sm:h-10 rounded-xl border border-input bg-background px-5 text-sm font-medium hover:bg-secondary transition-colors text-center cursor-pointer"
               >
                 Annuler immédiatement
               </button>
@@ -817,9 +826,9 @@ export function DataManagement() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteAll}
-                className="w-full sm:w-auto inline-flex h-10 sm:h-9 items-center justify-center gap-1.5 rounded-md bg-destructive px-4 text-xs sm:text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 text-center"
+                className="w-full sm:w-auto inline-flex h-11 sm:h-10 items-center justify-center gap-2 rounded-xl bg-destructive px-5 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 shadow-sm transition-all disabled:opacity-50 text-center cursor-pointer"
               >
-                {isDeleting ? "Suppression totale…" : "Oui, tout supprimer définitivement"}
+                {isDeleting ? "Suppression en cours…" : "Oui, tout supprimer définitivement"}
               </button>
             </div>
           </div>

@@ -51,9 +51,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-// Configuration publique directe du projet Supabase
 const DEFAULT_SUPABASE_URL = "https://jvjxrknwbnsvgnobbfwa.supabase.co";
-const DEFAULT_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+const DEFAULT_SUPABASE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2anhya253Ym5zdmdub2JiZndhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNjgxMzksImV4cCI6MjEwNzc0NDEzOX0.6BU65OVL_jcuc29NnWcQ7WiT53txB5aES8aFY4Z8ong";
 
 function createSupabaseClient() {
   const SUPABASE_URL =
