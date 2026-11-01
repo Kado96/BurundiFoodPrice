@@ -248,15 +248,6 @@ function AuthPage() {
                 {busy ? t("pleaseWait") : mode === "in" ? t("signInBtn") : t("createAccountBtn")}
               </button>
             </div>
-
-            <button
-              id="auth-toggle-mode-button"
-              type="button"
-              onClick={() => setMode(mode === "in" ? "up" : "in")}
-              className="mt-5 w-full text-center text-xs font-medium text-muted-foreground underline-offset-4 hover:underline hover:text-foreground transition-colors cursor-pointer"
-            >
-              {mode === "in" ? t("toggleToSignUp") : t("toggleToSignIn")}
-            </button>
           </form>
 
           {/* Accès observatoire public */}
