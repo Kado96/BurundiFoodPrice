@@ -11,12 +11,7 @@ export default function MarketMap({
   return (
     <MapContainer center={[-3.38, 29.92]} zoom={8} minZoom={7} maxBounds={[[-5, 28.5], [-2, 31.3]]}
       style={{ height, width: "100%" }} className="rounded-lg border">
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
-        maxZoom={19}
-      />
+      <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {markets.filter((m) => m.active).map((m) => {
         const lp = latest.filter((l) => l.market_id === m.id);
         const last = lp.reduce((a, l) => (l.observed_at > a ? l.observed_at : a), "");
