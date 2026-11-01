@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { isMobilePlatform, hasOptedForPublicWeb } from "@/lib/mobile";
 import { MarketHeroCarousel } from "@/components/MarketHeroCarousel";
 import { ProductPhotoGrid } from "@/components/ProductPhotoGrid";
+import { MultiSelect } from "@/components/MultiSelect";
 import { PRODUCT_IMAGES, getProductFallback } from "@/lib/images";
 
 export const Route = createFileRoute("/")(
@@ -49,7 +50,7 @@ function Home() {
   const ref = useRef();
   const latest = useLatest();
   const [qs, setQs] = useState("");
-  const [market, setMarket] = useState("");
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
 
   const d = ref.data;
   const rows = latest.data ?? [];
@@ -61,6 +62,13 @@ function Home() {
     () => Object.fromEntries((d?.markets ?? []).map((m) => [m.id, m.name])),
     [d]
   );
+
+  const marketOptions = useMemo(() => {
+    return (d?.markets ?? []).map((m) => ({
+      value: m.id,
+      label: tm(m.name),
+    }));
+  }, [d, tm]);
 
   // Moyenne nationale par produit
   const national = useMemo(() => {
@@ -80,7 +88,7 @@ function Home() {
   const lastUpdate = rows.reduce((a, r) => (r.observed_at > a ? r.observed_at : a), "");
 
   const found = rows.filter((r) =>
-    (!market || r.market_id === market) &&
+    (selectedMarkets.length === 0 || selectedMarkets.includes(r.market_id)) &&
     (!qs || (prodName[r.product_id] ?? "").toLowerCase().includes(qs.toLowerCase()) ||
       (tp(prodName[r.product_id] ?? "")).toLowerCase().includes(qs.toLowerCase()))
   ).slice(0, 12);
@@ -124,21 +132,20 @@ function Home() {
                 className="h-10 w-full bg-transparent outline-none text-sm"
               />
             </label>
-            <select
-              id="home-market-select"
-              name="market_filter"
-              aria-label={t("market")}
-              value={market}
-              onChange={(e) => setMarket(e.target.value)}
-              className="h-10 rounded-lg border bg-background px-3 text-sm"
-            >
-              <option value="">{t("allMarkets")}</option>
-              {d?.markets.map((m) => <option key={m.id} value={m.id}>{tm(m.name)}</option>)}
-            </select>
+            <div className="w-full sm:w-72">
+              <MultiSelect
+                options={marketOptions}
+                selected={selectedMarkets}
+                onChange={setSelectedMarkets}
+                placeholder={t("allMarkets")}
+                allLabel={t("allMarkets")}
+                maxBadges={2}
+              />
+            </div>
           </div>
 
           {/* Résultats de recherche */}
-          {(qs || market) && (
+          {(qs || selectedMarkets.length > 0) && (
             <div className="mt-4">
               <h2 className="mb-3 text-xl font-bold">{t("results")}</h2>
               {found.length === 0 ? (

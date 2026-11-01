@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useLatest, useRef, useSeries, fbu } from "@/lib/data";
 import { Page, PageTitle } from "@/components/bits";
+import { MultiSelect } from "@/components/MultiSelect";
 import { useI18n } from "@/lib/i18n";
 import { PRODUCT_IMAGES, getProductFallback, getMarketPhoto } from "@/lib/images";
-import { CheckCircle2, AlertTriangle, TrendingDown, LineChart as ChartIcon, ArrowLeftRight, ChevronDown } from "lucide-react";
+import { TrendingDown, LineChart as ChartIcon, Store, BarChart2 } from "lucide-react";
 
 export const Route = createFileRoute("/comparaison")({
   head: () => ({ meta: [
@@ -27,6 +28,10 @@ const VIBRANT_COLORS = [
   "#dc2626", // Rouge vermillon
   "#0891b2", // Cyan
   "#d97706", // Ambre
+  "#4f46e5", // Indigo
+  "#db2777", // Rose
+  "#059669", // Menthe
+  "#ca8a04", // Or
 ];
 
 function ComparaisonPage() {
@@ -36,59 +41,80 @@ function ComparaisonPage() {
   const d = ref.data;
 
   const [productId, setProductId] = useState("");
-  // Deux marchés sélectionnés MANUELLEMENT par l'utilisateur pour le duel
-  const [marketLeft, setMarketLeft] = useState(""); // Marché gauche (carte verte)
-  const [marketRight, setMarketRight] = useState(""); // Marché droit (carte rouge)
-  // Marchés supplémentaires dans le graphique temporel (jusqu'à 5 total)
-  const [extraSel, setExtraSel] = useState<string[]>([]);
+  // Sélection multiple de marchés
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
 
-  useEffect(() => { if (!productId && d?.products[0]) setProductId(d.products[0].id); }, [d, productId]);
+  useEffect(() => {
+    if (!productId && d?.products[0]) {
+      setProductId(d.products[0].id);
+    }
+  }, [d, productId]);
 
   const series = useSeries(productId || undefined, 180);
   const allMarkets = useMemo(() => d?.markets ?? [], [d]);
   const mkt = useMemo(() => Object.fromEntries(allMarkets.map((m) => [m.id, m.name])), [allMarkets]);
 
-  const bars = useMemo(() => {
+  // Tous les marchés avec prix pour le produit sélectionné
+  const productBars = useMemo(() => {
     return (latest.data ?? [])
       .filter((l) => l.product_id === productId)
       .map((l) => ({ name: mkt[l.market_id] ?? "?", id: l.market_id, prix: Number(l.unit_price) }))
       .sort((a, b) => a.prix - b.prix);
   }, [latest.data, productId, mkt]);
 
-  // Initialiser automatiquement les deux marchés au 1er chargement
+  // Initialisation par défaut : les 3 premiers marchés ou les 2 extrêmes si rien n'est sélectionné
   useEffect(() => {
-    if (bars.length >= 2 && !marketLeft && !marketRight) {
-      setMarketLeft(bars[0]!.id);    // le moins cher par défaut à gauche
-      setMarketRight(bars[bars.length - 1]!.id); // le plus cher par défaut à droite
+    if (productBars.length >= 2 && selectedMarkets.length === 0) {
+      if (productBars.length <= 4) {
+        setSelectedMarkets(productBars.map((b) => b.id));
+      } else {
+        // Le moins cher et le plus cher par défaut
+        setSelectedMarkets([productBars[0]!.id, productBars[productBars.length - 1]!.id]);
+      }
     }
-  }, [bars, marketLeft, marketRight]);
+  }, [productBars, selectedMarkets.length]);
 
-  // Réinitialiser quand on change de produit
+  // Réinitialiser la sélection au changement de produit pour s'adapter aux marchés disponibles
   useEffect(() => {
-    setMarketLeft("");
-    setMarketRight("");
-    setExtraSel([]);
+    setSelectedMarkets([]);
   }, [productId]);
 
-  // Données des deux marchés sélectionnés pour le duel
-  const leftData = bars.find((b) => b.id === marketLeft);
-  const rightData = bars.find((b) => b.id === marketRight);
+  // Options pour le composant MultiSelect
+  const marketOptions = useMemo(() => {
+    return productBars.map((b, i) => ({
+      value: b.id,
+      label: `${tm(b.name)} (${fbu(b.prix)})`,
+      color: VIBRANT_COLORS[i % VIBRANT_COLORS.length],
+    }));
+  }, [productBars, tm]);
 
-  // Liste des marchés actifs dans le graphique (les deux + extras)
-  const chartMarketIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (marketLeft) ids.add(marketLeft);
-    if (marketRight) ids.add(marketRight);
-    extraSel.forEach((id) => ids.add(id));
-    return Array.from(ids);
-  }, [marketLeft, marketRight, extraSel]);
+  // Attribution d'une couleur fixe à chaque marché
+  const marketColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    productBars.forEach((b, i) => {
+      map.set(b.id, VIBRANT_COLORS[i % VIBRANT_COLORS.length]);
+    });
+    return map;
+  }, [productBars]);
+
+  // Les barres filtrées selon la sélection (ou toutes si rien n'est sélectionné)
+  const displayedBars = useMemo(() => {
+    if (selectedMarkets.length === 0) return productBars;
+    return productBars.filter((b) => selectedMarkets.includes(b.id));
+  }, [productBars, selectedMarkets]);
+
+  // Marchés actifs pour le graphique temporel
+  const activeChartMarketIds = useMemo(() => {
+    if (selectedMarkets.length > 0) return selectedMarkets;
+    return productBars.slice(0, 5).map((b) => b.id);
+  }, [selectedMarkets, productBars]);
 
   const { lines, minPrice, maxPrice } = useMemo(() => {
     const by: Record<string, Record<string, number | string>> = {};
     let min = Infinity;
     let max = -Infinity;
 
-    (series.data ?? []).filter((r) => chartMarketIds.includes(r.market_id)).forEach((r) => {
+    (series.data ?? []).filter((r) => activeChartMarketIds.includes(r.market_id)).forEach((r) => {
       const p = Number(r.price);
       if (p > 0) {
         if (p < min) min = p;
@@ -103,18 +129,27 @@ function ComparaisonPage() {
       minPrice: isFinite(min) ? Math.floor(min * 0.9 / 100) * 100 : 0,
       maxPrice: isFinite(max) ? Math.ceil(max * 1.1 / 100) * 100 : 10000
     };
-  }, [series.data, chartMarketIds]);
+  }, [series.data, activeChartMarketIds]);
 
   const selectedProduct = d?.products.find((p) => p.id === productId);
-  const difference = (leftData && rightData) ? Math.abs(rightData.prix - leftData.prix) : 0;
-  const minPrix = leftData && rightData ? Math.min(leftData.prix, rightData.prix) : 1;
-  const percentDiff = minPrix > 0 ? Math.round((difference / minPrix) * 100) : 0;
-  const leftCheaper = leftData && rightData && leftData.prix <= rightData.prix;
 
-  // Toggle pour les marchés supplémentaires dans le graphique
-  const toggleExtra = (id: string) => {
-    if (id === marketLeft || id === marketRight) return; // Ne pas dupliquer
-    setExtraSel((s) => s.includes(id) ? s.filter((x) => x !== id) : s.length >= 3 ? s : [...s, id]);
+  // Statistiques sur les marchés sélectionnés
+  const stats = useMemo(() => {
+    if (displayedBars.length < 2) return null;
+    const sorted = [...displayedBars].sort((a, b) => a.prix - b.prix);
+    const cheapest = sorted[0];
+    const mostExpensive = sorted[sorted.length - 1];
+    const diff = mostExpensive.prix - cheapest.prix;
+    const pctDiff = cheapest.prix > 0 ? Math.round((diff / cheapest.prix) * 100) : 0;
+    return { cheapest, mostExpensive, diff, pctDiff };
+  }, [displayedBars]);
+
+  const toggleMarketInBar = (id: string) => {
+    if (selectedMarkets.includes(id)) {
+      setSelectedMarkets(selectedMarkets.filter((m) => m !== id));
+    } else {
+      setSelectedMarkets([...selectedMarkets, id]);
+    }
   };
 
   return (
@@ -154,163 +189,127 @@ function ComparaisonPage() {
       <Page>
         <PageTitle
           title={t("comparisonTitle")}
-          sub={`Comparatif en direct pour ${selectedProduct ? tp(selectedProduct.name) : "le produit sélectionné"}`}
+          sub={`Comparatif multi-marchés synchronisé pour ${selectedProduct ? tp(selectedProduct.name) : "le produit sélectionné"}`}
         />
 
         {/* ═══════════════════════════════════════════════
-            DUEL INTERACTIF : DEUX SÉLECTEURS DE MARCHÉS AVEC PHOTOS
+            SÉLECTEUR UNIVERSEL MULTI-MARCHÉS
         ═══════════════════════════════════════════════ */}
-        <div className="mb-8">
-          <p className="mb-3 text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
-            <ArrowLeftRight className="h-4 w-4 text-primary" />
-            Choisissez les deux marchés à confronter :
-          </p>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* ─── Marché Gauche (Gauche) ─── */}
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-card shadow-md">
-              {/* Photo en arrière-plan */}
-              {leftData && (
-                <img
-                  src={getMarketPhoto(leftData.name)}
-                  alt={leftData.name}
-                  className="absolute inset-0 h-full w-full object-cover opacity-15"
-                />
-              )}
-              <div className="relative p-5">
-                {/* Sélecteur de marché gauche */}
-                <div className="relative mb-3">
-                  <label className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-1 block">
-                    <CheckCircle2 className="inline h-3.5 w-3.5 mr-1" />
-                    Marché A (Gauche)
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={marketLeft}
-                      onChange={(e) => setMarketLeft(e.target.value)}
-                      className="h-10 w-full appearance-none rounded-xl border-2 border-emerald-500/40 bg-card px-3 pr-8 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
-                    >
-                      <option value="">— Sélectionner un marché —</option>
-                      {bars.map((b) => (
-                        <option key={b.id} value={b.id} disabled={b.id === marketRight}>
-                          {tm(b.name)} — {fbu(b.prix)}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-3 h-4 w-4 pointer-events-none text-muted-foreground" />
-                  </div>
-                </div>
-
-                {/* Affichage des données du marché gauche */}
-                {leftData ? (
-                  <>
-                    <h3 className="text-xl font-extrabold text-foreground">{tm(leftData.name)}</h3>
-                    <p className={`mt-1 text-3xl font-black tabular-nums ${leftCheaper ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                      {fbu(leftData.prix)}
-                    </p>
-                    {leftCheaper && leftData.id !== rightData?.id && (
-                      <span className="mt-2 inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                        ✅ Moins cher
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Sélectionnez un marché ci-dessus</p>
-                )}
-              </div>
+        <div className="mb-8 rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <Store className="h-5 w-5 text-primary" />
+                Sélection des marchés à comparer
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Choisissez 1, 2, 3, 5 ou tous les marchés pour synchroniser instantanément les graphiques et métriques ci-dessous.
+              </p>
             </div>
-
-            {/* ─── Marché Droit ─── */}
-            <div className="relative overflow-hidden rounded-2xl border border-red-500/30 bg-card shadow-md">
-              {/* Photo en arrière-plan */}
-              {rightData && (
-                <img
-                  src={getMarketPhoto(rightData.name)}
-                  alt={rightData.name}
-                  className="absolute inset-0 h-full w-full object-cover opacity-15"
-                />
-              )}
-              <div className="relative p-5">
-                {/* Sélecteur de marché droit */}
-                <div className="relative mb-3">
-                  <label className="text-xs font-bold text-red-700 dark:text-red-400 mb-1 block">
-                    <AlertTriangle className="inline h-3.5 w-3.5 mr-1" />
-                    Marché B (Droite)
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={marketRight}
-                      onChange={(e) => setMarketRight(e.target.value)}
-                      className="h-10 w-full appearance-none rounded-xl border-2 border-red-500/40 bg-card px-3 pr-8 text-sm font-semibold outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 cursor-pointer"
-                    >
-                      <option value="">— Sélectionner un marché —</option>
-                      {bars.map((b) => (
-                        <option key={b.id} value={b.id} disabled={b.id === marketLeft}>
-                          {tm(b.name)} — {fbu(b.prix)}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-3 h-4 w-4 pointer-events-none text-muted-foreground" />
-                  </div>
-                </div>
-
-                {/* Affichage des données du marché droit */}
-                {rightData ? (
-                  <>
-                    <h3 className="text-xl font-extrabold text-foreground">{tm(rightData.name)}</h3>
-                    <p className={`mt-1 text-3xl font-black tabular-nums ${!leftCheaper ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                      {fbu(rightData.prix)}
-                    </p>
-                    {!leftCheaper && leftData?.id !== rightData?.id && (
-                      <span className="mt-2 inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                        ✅ Moins cher
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Sélectionnez un marché ci-dessus</p>
-                )}
-              </div>
-            </div>
+            {selectedMarkets.length > 0 && (
+              <span className="text-xs font-semibold text-primary self-start sm:self-auto">
+                {selectedMarkets.length} marché{selectedMarkets.length > 1 ? "s" : ""} sélectionné{selectedMarkets.length > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
 
-          {/* Bandeau récapitulatif de l'écart de prix */}
-          {leftData && rightData && leftData.id !== rightData.id && (
-            <div className={`mt-4 rounded-xl border p-4 flex items-center justify-between ${
-              difference > 0 ? "border-orange-300/50 bg-orange-50/80 dark:bg-orange-950/20" : "border-emerald-300/50 bg-emerald-50/80"
-            }`}>
+          <div className="max-w-2xl">
+            <MultiSelect
+              options={marketOptions}
+              selected={selectedMarkets}
+              onChange={setSelectedMarkets}
+              placeholder="Tous les marchés (ou sélectionnez)"
+              allLabel="Tous les marchés"
+              maxBadges={3}
+            />
+          </div>
+
+          {/* Cartes d'aperçu des marchés sélectionnés */}
+          {displayedBars.length > 0 && (
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {displayedBars.map((b) => {
+                const color = marketColorMap.get(b.id) || "var(--primary)";
+                const isCheapest = stats && b.id === stats.cheapest.id;
+                const isExpensive = stats && b.id === stats.mostExpensive.id && stats.cheapest.id !== stats.mostExpensive.id;
+                return (
+                  <div
+                    key={b.id}
+                    className="relative overflow-hidden rounded-xl border bg-card p-3 shadow-xs transition-transform hover:-translate-y-0.5"
+                    style={{ borderLeftColor: color, borderLeftWidth: 4 }}
+                  >
+                    <img
+                      src={getMarketPhoto(b.name)}
+                      alt={b.name}
+                      className="absolute inset-0 h-full w-full object-cover opacity-10 pointer-events-none"
+                    />
+                    <div className="relative">
+                      <div className="text-xs font-semibold text-muted-foreground truncate">{tm(b.name)}</div>
+                      <div className="mt-1 font-display text-lg font-black tabular-nums text-foreground">
+                        {fbu(b.prix)}
+                      </div>
+                      {isCheapest && (
+                        <span className="mt-1 inline-block rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          Moins cher
+                        </span>
+                      )}
+                      {isExpensive && (
+                        <span className="mt-1 inline-block rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400">
+                          Plus cher
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bandeau d'écart de prix si au moins 2 marchés sélectionnés */}
+          {stats && stats.diff > 0 && (
+            <div className="mt-4 rounded-xl border border-orange-300/50 bg-orange-50/80 p-3.5 dark:bg-orange-950/20 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <TrendingDown className="h-5 w-5 text-orange-600" />
-                <span className="text-sm font-bold text-foreground">
-                  Écart de prix constaté entre {tm(marketLeft ? mkt[marketLeft] : "")} et {tm(marketRight ? mkt[marketRight] : "")} :
+                <TrendingDown className="h-5 w-5 text-orange-600 shrink-0" />
+                <span className="text-xs sm:text-sm font-semibold text-foreground">
+                  Écart entre <strong>{tm(stats.cheapest.name)}</strong> ({fbu(stats.cheapest.prix)}) et <strong>{tm(stats.mostExpensive.name)}</strong> ({fbu(stats.mostExpensive.prix)}) :
                 </span>
               </div>
-              <span className="text-lg font-black text-orange-600 tabular-nums">
-                +{fbu(difference)} (+{percentDiff}%)
+              <span className="text-sm sm:text-base font-black text-orange-600 tabular-nums">
+                +{fbu(stats.diff)} (+{stats.pctDiff}%)
               </span>
             </div>
           )}
         </div>
 
         {/* ═══════════════════════════════════════════════
-            GRAPHIQUE EN BARRES DE TOUS LES MARCHÉS
+            GRAPHIQUE EN BARRES COMPARATIVES
         ═══════════════════════════════════════════════ */}
         <div className="mb-10 rounded-2xl border bg-card p-5 shadow-sm">
-          <h2 className="text-lg font-bold">Classement de tous les marchés</h2>
-          <p className="text-xs text-muted-foreground mb-4">
-            Cliquez sur une barre pour ajouter ce marché aux courbes de tendance
-          </p>
-          <div style={{ width: "100%", height: Math.max(300, bars.length * 28) }}>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <BarChart2 className="h-5 w-5 text-primary" />
+                Comparatif des prix constatés ({displayedBars.length} marchés)
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Cliquez sur une barre pour ajouter ou retirer un marché de la sélection active
+              </p>
+            </div>
+          </div>
+
+          <div style={{ width: "100%", height: Math.max(300, displayedBars.length * 32) }}>
             <ResponsiveContainer>
-              <BarChart data={bars} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
+              <BarChart data={displayedBars} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
                 <XAxis type="number" tickFormatter={(v) => `${v} FBu`} tick={{ fontSize: 11 }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
-                <Tooltip formatter={(val: number) => [`${fbu(val)}`, "Prix constaté"]} contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }} />
+                <Tooltip
+                  formatter={(val: number) => [`${fbu(val)}`, "Prix constaté"]}
+                  contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
+                />
                 <Bar
                   dataKey="prix"
                   radius={[0, 4, 4, 0]}
-                  onClick={(entry: any) => toggleExtra(entry.id)}
+                  onClick={(entry: any) => toggleMarketInBar(entry.id)}
                   fill="var(--primary)"
                 />
               </BarChart>
@@ -325,10 +324,10 @@ function ComparaisonPage() {
           <div className="rounded-2xl border bg-card p-5 shadow-sm">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <ChartIcon className="h-5 w-5 text-primary" />
-              Évolution des prix sur 180 jours
+              Évolution des prix sur 180 jours ({activeChartMarketIds.length} marchés)
             </h2>
             <p className="text-xs text-muted-foreground mb-4">
-              Courbe comparative des marchés sélectionnés
+              Courbe comparative synchronisée avec vos marchés sélectionnés
             </p>
             <div style={{ width: "100%", height: 350 }}>
               <ResponsiveContainer>
@@ -337,9 +336,9 @@ function ComparaisonPage() {
                   <XAxis
                     dataKey="day"
                     tick={{ fontSize: 11 }}
-                    tickFormatter={(d) => {
-                      const parts = d.split("-");
-                      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
+                    tickFormatter={(dayStr) => {
+                      const parts = dayStr.split("-");
+                      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : dayStr;
                     }}
                   />
                   <YAxis
@@ -357,15 +356,15 @@ function ComparaisonPage() {
                     formatter={(id) => <span className="text-xs font-semibold">{tm(mkt[id] ?? id)}</span>}
                     wrapperStyle={{ paddingTop: "12px" }}
                   />
-                  {chartMarketIds.map((k, i) => (
+                  {activeChartMarketIds.map((k) => (
                     <Line
                       key={k}
                       type="monotone"
                       dataKey={k}
-                      stroke={VIBRANT_COLORS[i % VIBRANT_COLORS.length]}
+                      stroke={marketColorMap.get(k) || "#2563eb"}
                       strokeWidth={3}
                       dot={{ r: 4, strokeWidth: 1.5, fill: "#fff" }}
-                      activeDot={{ r: 6, stroke: VIBRANT_COLORS[i % VIBRANT_COLORS.length], strokeWidth: 2 }}
+                      activeDot={{ r: 6, stroke: marketColorMap.get(k) || "#2563eb", strokeWidth: 2 }}
                       connectNulls={true}
                     />
                   ))}
@@ -375,7 +374,7 @@ function ComparaisonPage() {
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center text-sm text-muted-foreground">
-            Sélectionnez deux marchés pour voir l'évolution comparative sur 180 jours.
+            Sélectionnez au moins un marché avec des données historiques pour voir l'évolution sur 180 jours.
           </div>
         )}
       </Page>
