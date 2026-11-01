@@ -85,7 +85,7 @@ function MarchesPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-black/50 to-black/30 pointer-events-none" />
 
-        <div className="relative mx-auto max-w-7xl px-4 py-12 md:py-16">
+        <div className="relative mx-auto max-w-7xl px-4 py-12 md:py-16 overflow-visible">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/90 px-3 py-1 text-xs font-semibold text-primary-foreground backdrop-blur-xs">
               <Store className="h-3.5 w-3.5" />
@@ -100,7 +100,7 @@ function MarchesPage() {
           </div>
 
           {/* Barre de filtres en surimpression */}
-          <div className="relative z-30 mt-8 flex flex-col gap-3 md:flex-row max-w-3xl rounded-xl border border-white/20 bg-card/95 p-3 shadow-lg backdrop-blur-md">
+          <div className="relative z-30 mt-8 flex flex-col gap-3 md:flex-row max-w-3xl rounded-xl border border-white/20 bg-card/95 p-3 shadow-lg backdrop-blur-md overflow-visible">
             <label htmlFor="markets-search-input" className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <input
@@ -113,7 +113,7 @@ function MarchesPage() {
                 className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
-            <div className="w-full md:w-56">
+            <div className="w-full md:w-56 overflow-visible">
               <MultiSelect
                 options={provinceOptions}
                 selected={selectedProvinces}
@@ -123,7 +123,7 @@ function MarchesPage() {
                 maxBadges={1}
               />
             </div>
-            <div className="w-full md:w-56">
+            <div className="w-full md:w-56 overflow-visible">
               <MultiSelect
                 options={communeOptions}
                 selected={selectedCommunes}

@@ -114,11 +114,11 @@ function CartePage() {
 
   return (
     <Page>
-      <div className="relative z-30">
+      <div className="relative z-30 overflow-visible">
         <PageTitle title={t("mapPageTitle")} sub={t("mapPageSub")}>
-          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto overflow-visible">
             {/* MultiSelect Provinces */}
-            <div className="w-full sm:w-48 lg:w-52">
+            <div className="w-full sm:w-48 lg:w-52 overflow-visible">
               <MultiSelect
                 options={provinceOptions}
                 selected={selectedProvinces}
@@ -130,7 +130,7 @@ function CartePage() {
             </div>
 
             {/* MultiSelect Communes */}
-            <div className="w-full sm:w-48 lg:w-52">
+            <div className="w-full sm:w-48 lg:w-52 overflow-visible">
               <MultiSelect
                 options={communeOptions}
                 selected={selectedCommunes}
@@ -142,7 +142,7 @@ function CartePage() {
             </div>
 
             {/* MultiSelect Marchés */}
-            <div className="w-full sm:w-48 lg:w-52">
+            <div className="w-full sm:w-48 lg:w-52 overflow-visible">
               <MultiSelect
                 options={marketOptions}
                 selected={selectedMarkets}
@@ -154,7 +154,7 @@ function CartePage() {
             </div>
 
             {/* MultiSelect Produits */}
-            <div className="w-full sm:w-56 lg:w-60">
+            <div className="w-full sm:w-56 lg:w-60 overflow-visible">
               <MultiSelect
                 options={productOptions}
                 selected={selectedProducts}
