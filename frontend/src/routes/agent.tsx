@@ -302,9 +302,18 @@ function CollectForm({ markets, onDone }: { markets: { id: string; name: string;
           <h2 className="flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5 text-primary" />Où faites-vous le relevé ?</h2>
           <Field label="Marché" req><select className={input} value={f.market_id} onChange={(e) => set("market_id")(e.target.value)}><option value="">— Sélectionner —</option>{markets.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Field>
           <Field label="Position GPS" hint="Recommandé : placez-vous dans le marché avant de capturer.">
-            <button type="button" onClick={captureGps} className="inline-flex h-11 items-center gap-2 rounded-md border bg-secondary px-4 text-sm font-medium"><LocateFixed className={cn("h-4 w-4", gpsBusy && "animate-pulse")} />{gpsBusy ? "Recherche…" : gps ? "Recapturer la position" : "Capturer ma position"}</button>
-            {gps && <div className="mt-2 text-sm">{gps.lat.toFixed(5)}, {gps.lng.toFixed(5)} · précision ±{Math.round(gps.acc)} m{dist != null && <> · à <b>{dist < 1000 ? `${Math.round(dist)} m` : `${(dist / 1000).toFixed(1)} km`}</b> du marché</>}</div>}
-            {dist != null && dist > 1000 && <Warn>Vous semblez loin du marché sélectionné. L'observation sera signalée au superviseur.</Warn>}
+            <button type="button" onClick={captureGps} className="inline-flex h-11 items-center gap-2 rounded-md border bg-secondary px-4 text-sm font-medium cursor-pointer"><LocateFixed className={cn("h-4 w-4", gpsBusy && "animate-pulse")} />{gpsBusy ? "Recherche…" : gps ? "Recapturer la position" : "Capturer ma position"}</button>
+            {gps && (
+              <div className="mt-2 text-sm text-foreground">
+                {gps.lat.toFixed(5)}, {gps.lng.toFixed(5)} · précision ±{Math.round(gps.acc)} m
+                {dist != null && isFinite(dist) && !isNaN(dist) && (
+                  <> · à <b>{dist < 1000 ? `${Math.round(dist)} m` : `${(dist / 1000).toFixed(1)} km`}</b> du marché</>
+                )}
+              </div>
+            )}
+            {dist != null && isFinite(dist) && dist > 1000 && (
+              <Warn>Vous semblez loin du marché sélectionné. L'observation sera signalée au superviseur.</Warn>
+            )}
           </Field>
         </>}
 

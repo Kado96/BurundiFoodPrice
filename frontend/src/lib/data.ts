@@ -110,11 +110,26 @@ export const fmtDate = (iso: string) => {
 };
 
 export const distanceM = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
+  a1: number | { lat: number; lng?: number; lon?: number },
+  b1?: number | { lat: number; lng?: number; lon?: number },
+  a2?: number,
+  b2?: number,
 ) => {
+  let lat1 = 0, lon1 = 0, lat2 = 0, lon2 = 0;
+  if (typeof a1 === "object" && a1 !== null && typeof b1 === "object" && b1 !== null) {
+    lat1 = Number(a1.lat);
+    lon1 = Number(a1.lng ?? a1.lon ?? 0);
+    lat2 = Number(b1.lat);
+    lon2 = Number(b1.lng ?? b1.lon ?? 0);
+  } else {
+    lat1 = Number(a1);
+    lon1 = Number(b1);
+    lat2 = Number(a2);
+    lon2 = Number(b2);
+  }
+
+  if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return null;
+
   const R = 6371e3;
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
@@ -123,7 +138,8 @@ export const distanceM = (
   const a =
     Math.sin(Δφ / 2) ** 2 +
     Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return isFinite(dist) ? dist : null;
 };
 
 export const PROVINCE_COLORS: Record<string, string> = {
