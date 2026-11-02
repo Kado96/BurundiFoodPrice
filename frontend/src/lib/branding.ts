@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { registerGalleryItem, syncGalleryToCloud } from "@/lib/photoGallery";
 
 export type AppBranding = {
   logoUrl?: string | null;
@@ -35,62 +35,16 @@ export function saveBrandingLocal(branding: AppBranding) {
 }
 
 export async function syncBrandingToSupabase(branding: AppBranding) {
-  // Sauvegarde locale immédiate
   saveBrandingLocal(branding);
-
-  try {
-    // Récupérer les photos existantes pour ne pas écraser les marchés et produits
-    let markets = {};
-    let products = {};
-    try {
-      markets = JSON.parse(localStorage.getItem("bfp_photo_market") ?? "{}");
-      products = JSON.parse(localStorage.getItem("bfp_photo_product") ?? "{}");
-    } catch {
-      // ignore
-    }
-
-    // Récupérer l'enregistrement existant dans Supabase
-    const { data: existing } = await supabase
-      .from("categories")
-      .select("id, name")
-      .like("name", "__SYSTEM_PHOTOS__:%")
-      .limit(1);
-
-    if (existing && existing.length > 0) {
-      try {
-        const raw = existing[0].name.replace("__SYSTEM_PHOTOS__:", "");
-        const decoded = JSON.parse(decodeURIComponent(escape(atob(raw))));
-        if (decoded.markets) markets = decoded.markets;
-        if (decoded.products) products = decoded.products;
-      } catch (err) {
-        console.warn("[branding] failed to decode existing remote config:", err);
-      }
-    }
-
-    const payload = {
-      markets,
-      products,
-      appBranding: branding,
-    };
-
-    const jsonStr = JSON.stringify(payload);
-    const encoded = "__SYSTEM_PHOTOS__:" + btoa(unescape(encodeURIComponent(jsonStr)));
-
-    if (existing && existing.length > 0) {
-      const { error } = await supabase
-        .from("categories")
-        .update({ name: encoded, sort: 999 })
-        .eq("id", existing[0].id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from("categories")
-        .insert({ name: encoded, sort: 999 });
-      if (error) throw error;
-    }
-  } catch (err) {
-    console.error("[branding] error syncing to Supabase:", err);
-    throw err;
+  if (branding.logoUrl && /^https?:\/\//i.test(branding.logoUrl)) {
+    registerGalleryItem({ url: branding.logoUrl, label: "Logo", kind: "branding" });
+  }
+  if (branding.splashUrl && /^https?:\/\//i.test(branding.splashUrl)) {
+    registerGalleryItem({ url: branding.splashUrl, label: "Splash", kind: "branding" });
+  }
+  const res = await syncGalleryToCloud({ appBranding: branding });
+  if (!res.ok) {
+    throw new Error("Sync galerie branding échouée");
   }
 }
 

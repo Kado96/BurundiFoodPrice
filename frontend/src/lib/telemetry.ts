@@ -33,15 +33,20 @@ export async function trackEvent(event: TelemetryEvent): Promise<void> {
       origin_url: typeof window !== "undefined" ? window.location.href : "",
     };
 
+    // text/plain + no-cors = pas de preflight CORS (évite le bruit console localhost)
+    const body = JSON.stringify(payload);
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      navigator.sendBeacon(N8N_WEBHOOK_URL, new Blob([body], { type: "text/plain" }));
+      return;
+    }
     fetch(N8N_WEBHOOK_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body,
       keepalive: true,
     }).catch(() => {
-      // Échec silencieux intentionnel : la télémétrie ne doit jamais interrompre l'expérience utilisateur
+      /* silencieux */
     });
   } catch {
     // Catch global silencieux

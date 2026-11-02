@@ -1,39 +1,104 @@
 /**
- * MarketHeroCarousel — Carrousel défilant de photos des marchés du Burundi
- * Défilement automatique toutes les 6s · Flèches · Indicateurs dots
+ * MarketHeroCarousel — carrousel de TOUTES les photos de marchés (galerie admin).
+ * Source : marchés actifs DB + galerie bfp_photo_market / MARKET_IMAGES.
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
-import { MARKET_SLIDES } from "@/lib/images";
+import { useRef } from "@/lib/data";
+import {
+  loadPhotoStore,
+  resolveMarketPhoto,
+  subscribePhotoUpdates,
+  STORAGE_MARKET,
+} from "@/lib/photoGallery";
+import { MARKET_IMAGES } from "@/lib/images";
 import { useI18n } from "@/lib/i18n";
 
-const INTERVAL = 6000;
+const INTERVAL = 5000;
+
+type Slide = {
+  id: string;
+  name: string;
+  province: string;
+  commune: string | null;
+  image: string;
+};
 
 export function MarketHeroCarousel() {
   const { t } = useI18n();
+  const ref = useRef();
+  const [galleryTick, setGalleryTick] = useState(0);
   const [active, setActive] = useState(0);
-  const [loaded, setLoaded] = useState<boolean[]>(Array(MARKET_SLIDES.length).fill(false));
 
-  const go = useCallback((idx: number) => {
-    setActive((idx + MARKET_SLIDES.length) % MARKET_SLIDES.length);
-  }, []);
+  useEffect(() => subscribePhotoUpdates(() => setGalleryTick((n) => n + 1)), []);
 
-  // Auto-défilement
+  const slides: Slide[] = useMemo(() => {
+    void galleryTick;
+    const gallery = loadPhotoStore(STORAGE_MARKET);
+    const provinces = Object.fromEntries((ref.data?.provinces ?? []).map((p) => [p.id, p.name]));
+    const markets = (ref.data?.markets ?? []).filter((m) => m.active !== false);
+
+    if (markets.length) {
+      return markets.map((m) => ({
+        id: m.id,
+        name: m.name,
+        province: provinces[m.province_id] || "",
+        commune: m.commune,
+        image: resolveMarketPhoto(m.name, gallery),
+      }));
+    }
+
+    // Offline / avant chargement DB : galerie admin + registres images.ts
+    const names = Array.from(new Set([...Object.keys(gallery), ...Object.keys(MARKET_IMAGES)]));
+    return names.map((name, i) => ({
+      id: `g-${i}-${name}`,
+      name,
+      province: "",
+      commune: null,
+      image: resolveMarketPhoto(name, gallery),
+    }));
+  }, [ref.data?.markets, ref.data?.provinces, galleryTick]);
+
+  const count = slides.length || 1;
+
+  const go = useCallback(
+    (idx: number) => {
+      setActive((idx + count) % count);
+    },
+    [count],
+  );
+
   useEffect(() => {
+    if (slides.length <= 1) return;
     const id = window.setInterval(() => go(active + 1), INTERVAL);
     return () => window.clearInterval(id);
-  }, [active, go]);
+  }, [active, go, slides.length]);
 
-  const slide = MARKET_SLIDES[active];
+  useEffect(() => {
+    if (active >= slides.length) setActive(0);
+  }, [slides.length, active]);
+
+  if (!slides.length) {
+    return (
+      <div
+        className="flex w-full items-center justify-center rounded-none bg-muted md:rounded-2xl"
+        style={{ height: "clamp(260px, 45vw, 520px)" }}
+      >
+        <p className="text-sm text-muted-foreground">Chargement des photos des marchés…</p>
+      </div>
+    );
+  }
+
+  const slide = slides[Math.min(active, slides.length - 1)];
 
   return (
-    <div className="relative w-full overflow-hidden rounded-none md:rounded-2xl shadow-xl"
-         style={{ height: "clamp(260px, 45vw, 520px)" }}>
-
-      {/* Images en stack — transition opacity */}
-      {MARKET_SLIDES.map((s, i) => (
+    <div
+      className="relative w-full overflow-hidden rounded-none shadow-xl md:rounded-2xl"
+      style={{ height: "clamp(260px, 45vw, 520px)" }}
+    >
+      {slides.map((s, i) => (
         <div
-          key={s.name}
+          key={s.id}
           className="absolute inset-0 transition-opacity duration-700"
           style={{ opacity: i === active ? 1 : 0, zIndex: i === active ? 1 : 0 }}
         >
@@ -41,66 +106,64 @@ export function MarketHeroCarousel() {
             src={s.image}
             alt={s.name}
             loading={i === 0 ? "eager" : "lazy"}
-            onLoad={() => setLoaded(prev => { const n = [...prev]; n[i] = true; return n; })}
             className="h-full w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.opacity = "0.3";
+            }}
           />
-          {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         </div>
       ))}
 
-      {/* Texte en bas */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-5 md:p-8 text-white">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-primary-foreground/80 mb-1">
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-5 text-white md:p-8">
+        <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-primary-foreground/80">
           <MapPin className="h-3.5 w-3.5 text-primary" />
-          <span className="text-primary font-semibold">{slide.province}</span>
+          <span className="font-semibold text-primary">
+            {[slide.province, slide.commune].filter(Boolean).join(" · ") || "Burundi"}
+          </span>
         </div>
-        <h2 className="text-xl md:text-3xl font-bold leading-tight drop-shadow-md">
-          {slide.name}
-        </h2>
-        <p className="mt-1 text-sm md:text-base text-white/80 max-w-xl hidden md:block">
-          {slide.caption}
+        <h2 className="text-xl font-bold leading-tight drop-shadow-md md:text-3xl">{slide.name}</h2>
+        <p className="mt-1 hidden max-w-xl text-sm text-white/80 md:block">
+          {slides.length} marchés · galerie photos administrateur
         </p>
       </div>
 
-      {/* Flèche gauche */}
-      <button
-        aria-label="Précédent"
-        onClick={() => go(active - 1)}
-        className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
-
-      {/* Flèche droite */}
-      <button
-        aria-label="Suivant"
-        onClick={() => go(active + 1)}
-        className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
-      >
-        <ChevronRight className="h-5 w-5" />
-      </button>
-
-      {/* Dots */}
-      <div className="absolute bottom-3 right-5 z-20 flex gap-1.5">
-        {MARKET_SLIDES.map((_, i) => (
+      {slides.length > 1 && (
+        <>
           <button
-            key={i}
-            onClick={() => go(i)}
-            aria-label={`Slide ${i + 1}`}
-            className="rounded-full transition-all"
-            style={{
-              width: i === active ? 20 : 7,
-              height: 7,
-              background: i === active ? "white" : "rgba(255,255,255,0.4)",
-            }}
-          />
-        ))}
-      </div>
+            aria-label="Précédent"
+            onClick={() => go(active - 1)}
+            className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            aria-label="Suivant"
+            onClick={() => go(active + 1)}
+            className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+          <div className="absolute bottom-3 right-5 z-20 flex max-w-[50%] flex-wrap justify-end gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => go(i)}
+                aria-label={`Marché ${i + 1}`}
+                className="rounded-full transition-all"
+                style={{
+                  width: i === active ? 18 : 6,
+                  height: 6,
+                  background: i === active ? "white" : "rgba(255,255,255,0.4)",
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
-      {/* Badge */}
-      <div className="absolute top-4 left-4 z-20 rounded-full bg-primary/90 px-3 py-1 text-xs font-bold text-primary-foreground shadow-md backdrop-blur-sm">
-        🌍 {t("observatory")} — Marchés du Burundi
+      <div className="absolute left-4 top-4 z-20 rounded-full bg-primary/90 px-3 py-1 text-xs font-bold text-primary-foreground shadow-md backdrop-blur-sm">
+        🌍 {t("observatory")} — {slides.length} marchés
       </div>
     </div>
   );

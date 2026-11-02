@@ -15,8 +15,13 @@ function apiBase(): string {
       ?.isNativePlatform?.();
     if (isNative) return PROD_API;
 
-    // Vercel sans VITE_API_URL
-    if (window.location.hostname.includes("vercel.app")) return PROD_API;
+    const host = window.location.hostname;
+    // Prod hébergée (Vercel / domaine custom) sans VITE_API_URL
+    if (host.includes("vercel.app") || host.includes("burundi-food") || host.includes("burundu")) {
+      return PROD_API;
+    }
+    // Hors localhost / 127.0.0.1 → API Render (évite 502 silencieux)
+    if (host && host !== "localhost" && host !== "127.0.0.1") return PROD_API;
   }
   return "";
 }
@@ -167,12 +172,19 @@ export async function adminDeleteObservations(body: {
 }
 
 export async function adminUploadPhoto(body: {
-  type: "market" | "product" | "branding";
+  type: "market" | "product" | "branding" | "library";
   name: string;
   dataUrl: string;
 }) {
   return api<{ ok: true; url: string; path: string }>("/api/admin/upload-photo", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+export async function adminSaveGalleryMeta(payload: Record<string, unknown>) {
+  return api<{ ok: true; path: string; url: string }>("/api/admin/gallery-meta", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

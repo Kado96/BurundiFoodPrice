@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { pullGalleryToLocal } from "@/lib/photoGallery";
 
 export type Province = { id: string; name: string };
 export type Market = {
@@ -27,29 +28,15 @@ export function useRef() {
     const err = p.error || m.error || c.error || pr.error;
     if (err) throw err;
 
-    // Isoler et synchroniser la config cloud des photos globales
-    const rawCategories = (c.data ?? []) as Category[];
-    const photoConfigCat = rawCategories.find((cat) => cat.name.startsWith("__SYSTEM_PHOTOS__:"));
-    if (photoConfigCat) {
-      try {
-        const raw = photoConfigCat.name.replace("__SYSTEM_PHOTOS__:", "");
-        const decoded = JSON.parse(atob(raw));
-        if (decoded.markets) {
-          localStorage.setItem("bfp_photo_market", JSON.stringify(decoded.markets));
-        }
-        if (decoded.products) {
-          localStorage.setItem("bfp_photo_product", JSON.stringify(decoded.products));
-        }
-        if (decoded.appBranding) {
-          localStorage.setItem("bfp_app_branding", JSON.stringify(decoded.appBranding));
-          window.dispatchEvent(new Event("bfp_branding_updated"));
-        }
-      } catch (e) {
-        console.warn("[cloud-photos] error decoding remote config:", e);
-      }
+    // Galerie cloud (Storage gallery.json) — plus de hack categories
+    try {
+      await pullGalleryToLocal();
+    } catch (e) {
+      console.warn("[cloud-photos] gallery pull:", e);
     }
 
-    // Filtrer la catégorie système spéciale pour ne pas polluer les sélecteurs UI
+    const rawCategories = (c.data ?? []) as Category[];
+    // Masque d’éventuels anciens enregistrements __SYSTEM_PHOTOS__
     const normalCategories = rawCategories.filter((cat) => !cat.name.startsWith("__SYSTEM_PHOTOS__"));
 
     return {

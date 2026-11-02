@@ -261,7 +261,7 @@ router.all("/observations/delete", requireAdmin, async (req, res) => {
 });
 
 const uploadPhotoSchema = z.object({
-  type: z.enum(["market", "product", "branding"]),
+  type: z.enum(["market", "product", "branding", "library"]),
   name: z.string().trim().min(1).max(150),
   dataUrl: z.string().min(10),
 });
@@ -292,9 +292,28 @@ router.post("/upload-photo", requireAdmin, async (req, res) => {
 
     const slug = slugify(name) || "photo";
     const extension = contentType.includes("webp") ? "webp" : "jpg";
-    const path = `catalogs/${type}s/${slug}_${Date.now()}.${extension}`;
+    const folder = type === "library" ? "library" : `${type}s`;
+    const path = `catalogs/${folder}/${slug}_${Date.now()}.${extension}`;
 
     const admin = createAdminClient();
+
+    // Garantit le bucket public (idempotent)
+    try {
+      const { data: buckets } = await admin.storage.listBuckets();
+      const hasPhotos = (buckets || []).some((b) => b.id === "photos" || b.name === "photos");
+      if (!hasPhotos) {
+        await admin.storage.createBucket("photos", {
+          public: true,
+          fileSizeLimit: 5242880,
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+        });
+      } else {
+        await admin.storage.updateBucket("photos", { public: true });
+      }
+    } catch (bucketErr) {
+      console.warn("[upload-photo] bucket ensure:", bucketErr?.message || bucketErr);
+    }
+
     const { error: uploadError } = await admin.storage
       .from("photos")
       .upload(path, buffer, {
@@ -320,6 +339,106 @@ router.post("/upload-photo", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: err.errors?.[0]?.message || "Données invalides" });
     }
     console.error("[upload-photo]", err);
+    return res.status(500).json({ error: err.message || "Erreur serveur" });
+  }
+});
+
+const galleryMetaSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        url: z.string(),
+        path: z.string().optional(),
+        label: z.string().optional(),
+        kind: z.enum(["market", "product", "branding", "library"]).optional(),
+        createdAt: z.string().optional(),
+      }),
+    )
+    .optional()
+    .default([]),
+  markets: z.record(z.string()).default({}),
+  products: z.record(z.string()).default({}),
+  appBranding: z.record(z.any()).optional(),
+  updatedAt: z.string().optional(),
+});
+
+/** Métadonnées galerie → Storage JSON (évite le 500 sur categories.name trop gros) */
+router.post("/gallery-meta", requireAdmin, async (req, res) => {
+  try {
+    const parsed = galleryMetaSchema.parse(req.body || {});
+    const httpOnly = (map) => {
+      const out = {};
+      for (const [k, v] of Object.entries(map || {})) {
+        if (typeof v === "string" && /^https?:\/\//i.test(v)) out[k] = v;
+      }
+      return out;
+    };
+    const items = (parsed.items || []).filter(
+      (it) => it && typeof it.url === "string" && /^https?:\/\//i.test(it.url),
+    );
+    const payload = {
+      items,
+      markets: httpOnly(parsed.markets),
+      products: httpOnly(parsed.products),
+      ...(parsed.appBranding ? { appBranding: parsed.appBranding } : {}),
+      updatedAt: parsed.updatedAt || new Date().toISOString(),
+    };
+    const path = "catalogs/meta/gallery.json";
+    const buffer = Buffer.from(JSON.stringify(payload), "utf8");
+    const admin = createAdminClient();
+
+    try {
+      await admin.storage.updateBucket("photos", {
+        public: true,
+        allowedMimeTypes: [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "application/json",
+        ],
+      });
+    } catch (bucketErr) {
+      console.warn("[gallery-meta] bucket update:", bucketErr?.message || bucketErr);
+    }
+
+    const { error: uploadError } = await admin.storage.from("photos").upload(path, buffer, {
+      contentType: "application/json",
+      upsert: true,
+    });
+    if (uploadError) {
+      console.error("[gallery-meta] upload:", uploadError);
+      return res.status(500).json({ error: uploadError.message || "Erreur upload galerie" });
+    }
+
+    // Nettoie l’ancien hack categories __SYSTEM_PHOTOS__
+    try {
+      const { data: rows } = await admin
+        .from("categories")
+        .select("id")
+        .like("name", "__SYSTEM_PHOTOS__:%");
+      if (rows?.length) {
+        await admin.from("categories").delete().in(
+          "id",
+          rows.map((r) => r.id),
+        );
+      }
+    } catch (cleanErr) {
+      console.warn("[gallery-meta] legacy cleanup:", cleanErr?.message || cleanErr);
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
+    return res.json({
+      ok: true,
+      path,
+      url: `${supabaseUrl}/storage/v1/object/public/photos/${path}`,
+    });
+  } catch (err) {
+    if (err?.name === "ZodError") {
+      return res.status(400).json({ error: err.errors?.[0]?.message || "Données invalides" });
+    }
+    console.error("[gallery-meta]", err);
     return res.status(500).json({ error: err.message || "Erreur serveur" });
   }
 });

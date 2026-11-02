@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BarChart3, CheckSquare, Database, Download, Package, Store, Users, Sparkles } from "lucide-react";
+import { BarChart3, CheckSquare, Database, Download, Package, Store, Users, Sparkles, Images } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { Page, PageTitle } from "@/components/bits";
@@ -13,6 +13,7 @@ import { Markets, Products } from "@/components/admin/Catalog";
 import { ExportPanel } from "@/components/admin/ExportPanel";
 import { DataManagement } from "@/components/admin/DataManagement";
 import { AppBrandingAdmin } from "@/components/admin/AppBranding";
+import { PhotoGallery } from "@/components/admin/PhotoGallery";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [
@@ -35,6 +36,7 @@ const TABS: { k: string; lKey: TKey; i: typeof BarChart3 }[] = [
   { k: "agents", lKey: "usersTab", i: Users },
   { k: "markets", lKey: "marketsTab", i: Store },
   { k: "products", lKey: "productsTab", i: Package },
+  { k: "gallery", lKey: "galleryTab", i: Images },
   { k: "branding", lKey: "brandingTab", i: Sparkles },
   { k: "export", lKey: "exportTab", i: Download },
 ];
@@ -51,7 +53,7 @@ function AdminPage() {
       <Link to="/agent" className="mt-4 inline-block text-primary underline">{t("goToAgentSpace")}</Link>
     </div></Page>
   );
-  const visible = TABS.filter((t) => isAdmin || !["agents", "markets", "products", "branding"].includes(t.k));
+  const visible = TABS.filter((t) => isAdmin || !["agents", "markets", "products", "gallery", "branding"].includes(t.k));
   const roleText = roles.includes("super_admin") ? t("superAdminRole") : isAdmin ? t("adminRole") : t("supervisorRole");
 
   return (
@@ -81,6 +83,7 @@ function AdminPage() {
       {tab === "agents" && isAdmin && <Agents />}
       {tab === "markets" && isAdmin && <Markets />}
       {tab === "products" && isAdmin && <Products />}
+      {tab === "gallery" && isAdmin && <PhotoGallery />}
       {tab === "branding" && isAdmin && <AppBrandingAdmin />}
       {tab === "export" && <ExportPanel />}
     </Page>

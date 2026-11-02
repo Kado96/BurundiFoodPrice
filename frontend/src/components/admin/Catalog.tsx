@@ -20,75 +20,47 @@ import {
   getMarketPhoto,
   getProductFallback,
 } from "@/lib/images";
-import { adminUploadPhoto } from "@/lib/adminApi";
+import { uploadCatalogPhoto } from "@/lib/photoUpload";
+import {
+  STORAGE_MARKET,
+  STORAGE_PRODUCT,
+  loadPhotoStore,
+  savePhotoStore,
+  registerGalleryItem,
+  syncGalleryToCloud,
+} from "@/lib/photoGallery";
 
 const input = "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
-// ─── Utilitaires localStorage & Cloud Supabase photos ───────────────────────
-
-const STORAGE_MARKET = "bfp_photo_market";
-const STORAGE_PRODUCT = "bfp_photo_product";
-
-function loadPhotoStore(key: string): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(key) ?? "{}"); } catch { return {}; }
-}
-function savePhotoStore(key: string, store: Record<string, string>) {
-  localStorage.setItem(key, JSON.stringify(store));
-}
-
-// Synchronise de manière transparente et persistante vers Supabase cloud
+// Sync cloud via Storage gallery.json (plus de PATCH categories → 500)
 async function syncPhotosToSupabaseCloud() {
-  try {
-    const markets = loadPhotoStore(STORAGE_MARKET);
-    const products = loadPhotoStore(STORAGE_PRODUCT);
-    let appBranding = undefined;
-    try {
-      const bRaw = localStorage.getItem("bfp_app_branding");
-      if (bRaw) appBranding = JSON.parse(bRaw);
-    } catch {
-      // ignore
-    }
-    const payload: any = { markets, products };
-    if (appBranding) payload.appBranding = appBranding;
-    const jsonStr = JSON.stringify(payload);
-    const encoded = "__SYSTEM_PHOTOS__:" + btoa(unescape(encodeURIComponent(jsonStr)));
-
-    // Rechercher l'enregistrement existant
-    const { data: existing } = await supabase
-      .from("categories")
-      .select("id")
-      .like("name", "__SYSTEM_PHOTOS__:%")
-      .limit(1);
-
-    if (existing && existing.length > 0) {
-      await supabase
-        .from("categories")
-        .update({ name: encoded, sort: 999 })
-        .eq("id", existing[0].id);
-    } else {
-      await supabase
-        .from("categories")
-        .insert({ name: encoded, sort: 999 });
-    }
-  } catch (err) {
-    console.warn("[cloud-sync] error uploading photos metadata to Supabase:", err);
-  }
+  await syncGalleryToCloud();
 }
 
 export function useMarketPhotos() {
   const [store, setStore] = useState<Record<string, string>>(() => loadPhotoStore(STORAGE_MARKET));
+  useEffect(() => {
+    const sync = () => setStore(loadPhotoStore(STORAGE_MARKET));
+    window.addEventListener("bfp_photos_updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("bfp_photos_updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   function setPhoto(name: string, url: string) {
     const next = { ...store, [name]: url };
     setStore(next);
     savePhotoStore(STORAGE_MARKET, next);
-    syncPhotosToSupabaseCloud();
+    if (/^https?:\/\//i.test(url)) registerGalleryItem({ url, label: name, kind: "market" });
+    void syncPhotosToSupabaseCloud();
   }
   function resetPhoto(name: string) {
     const next = { ...store };
     delete next[name];
     setStore(next);
     savePhotoStore(STORAGE_MARKET, next);
-    syncPhotosToSupabaseCloud();
+    void syncPhotosToSupabaseCloud();
   }
   function getPhoto(name: string) {
     return store[name] || MARKET_IMAGES[name] || getMarketPhoto(name);
@@ -98,18 +70,28 @@ export function useMarketPhotos() {
 
 export function useProductPhotos() {
   const [store, setStore] = useState<Record<string, string>>(() => loadPhotoStore(STORAGE_PRODUCT));
+  useEffect(() => {
+    const sync = () => setStore(loadPhotoStore(STORAGE_PRODUCT));
+    window.addEventListener("bfp_photos_updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("bfp_photos_updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   function setPhoto(name: string, url: string) {
     const next = { ...store, [name]: url };
     setStore(next);
     savePhotoStore(STORAGE_PRODUCT, next);
-    syncPhotosToSupabaseCloud();
+    if (/^https?:\/\//i.test(url)) registerGalleryItem({ url, label: name, kind: "product" });
+    void syncPhotosToSupabaseCloud();
   }
   function resetPhoto(name: string) {
     const next = { ...store };
     delete next[name];
     setStore(next);
     savePhotoStore(STORAGE_PRODUCT, next);
-    syncPhotosToSupabaseCloud();
+    void syncPhotosToSupabaseCloud();
   }
   function getPhoto(name: string) {
     return store[name] || PRODUCT_IMAGES[name] || getProductFallback(name);
@@ -204,29 +186,36 @@ export function PhotoDropzone({ type, name, onUploaded, className = "", buttonOn
           ctx?.drawImage(img, 0, 0, width, height);
           const compressed = canvas.toDataURL("image/webp", 0.85);
 
-          // Afficher tout de suite en local
+          // Aperçu immédiat
           onUploaded(compressed);
 
-          // Téléverser vers Supabase Storage
           const targetName = name?.trim() || `${type}_${Date.now()}`;
-          const uploadToast = toast.loading("Téléversement vers Supabase Storage...");
+          const uploadToast = toast.loading("Téléversement de la photo…");
           try {
-            const res = await adminUploadPhoto({
+            const res = await uploadCatalogPhoto({
               type,
               name: targetName,
               dataUrl: compressed,
             });
-            if (res?.url) {
-              onUploaded(res.url);
-              setSuccess(true);
-              toast.success("Photo téléversée dans Supabase Storage 🚀", { id: uploadToast });
-              setTimeout(() => setSuccess(false), 3000);
+            onUploaded(res.url);
+            setSuccess(true);
+            if (res.source === "local") {
+              toast.warning(
+                "Photo enregistrée en local seulement (réseau / Supabase indisponible). Réessaie quand Internet revient.",
+                { id: uploadToast, duration: 6000 },
+              );
             } else {
-              throw new Error("Réponse serveur vide");
+              toast.success(
+                res.source === "api"
+                  ? "Photo publiée (API + Storage)"
+                  : "Photo publiée (Storage Supabase)",
+                { id: uploadToast },
+              );
             }
+            setTimeout(() => setSuccess(false), 3000);
           } catch (uploadErr) {
-            console.warn("[upload-photo] Fallback local DataURL:", uploadErr);
-            toast.warning("Photo conservée en local (serveur non joignable)", { id: uploadToast });
+            console.warn("[upload-photo]", uploadErr);
+            toast.error("Échec du téléversement photo", { id: uploadToast });
           }
         } catch (err: any) {
           toast.error("Erreur d'optimisation de l'image");
