@@ -3,7 +3,10 @@
  * Envoie des signaux en temps réel vers le webhook n8n de manière asynchrone et résiliente.
  */
 
-const N8N_WEBHOOK_URL = "https://n8n-ajs5.onrender.com/webhook/bfp-events";
+const N8N_WEBHOOK_URL =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as ImportMeta & { env?: { VITE_N8N_WEBHOOK_URL?: string } }).env?.VITE_N8N_WEBHOOK_URL?.trim()) ||
+  "https://n8n-ajs5.onrender.com/webhook/bfp-events";
 
 // Durée minimale entre deux événements de page vue pour la même route (60 secondes)
 const PAGE_VIEW_THROTTLE_MS = 60 * 1000;

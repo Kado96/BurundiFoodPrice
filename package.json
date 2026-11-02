@@ -10,6 +10,7 @@
     "build": "npm run build --prefix frontend",
     "start": "npm start --prefix backend",
     "health:api": "node -e \"fetch('http://127.0.0.1:4000/health').then(r=>r.json()).then(console.log).catch(e=>{console.error('API down:',e.message);process.exit(1)})\"",
+    "n8n:deploy": "node scripts/deploy-n8n-workflows.mjs",
     "github": "git add . && git commit -m \"update: synchronisation\" && git push origin main"
   },
   "engines": {

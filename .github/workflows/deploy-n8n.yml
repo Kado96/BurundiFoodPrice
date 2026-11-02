@@ -1,0 +1,57 @@
+# À chaque push sur main : redéploie et active les workflows n8n BFP en prod
+name: Deploy n8n workflows (prod)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-n8n:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Wake n8n + deploy & activate
+        env:
+          N8N_BASE_URL: https://n8n-ajs5.onrender.com
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+          BFP_GMAIL_RELAY_URL: ${{ vars.BFP_GMAIL_RELAY_URL }}
+          BFP_GMAIL_RELAY_SECRET: ${{ secrets.BFP_GMAIL_RELAY_SECRET }}
+        run: |
+          if [ -z "$N8N_API_KEY" ]; then
+            echo "Secret N8N_API_KEY manquant dans GitHub → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          # Fallback relais Gmail déjà connu en prod si var non définie
+          if [ -z "$BFP_GMAIL_RELAY_URL" ]; then
+            export BFP_GMAIL_RELAY_URL="https://script.google.com/macros/s/AKfycbz7pHhek_WU73YQDjHONgFEH05f9F1RWAQg8_oiTVn4JHjD-aznOKUDd79wQY8npvb0/exec"
+          fi
+          if [ -z "$BFP_GMAIL_RELAY_SECRET" ]; then
+            export BFP_GMAIL_RELAY_SECRET="bfp-gmail-relay-2026"
+          fi
+          node scripts/deploy-n8n-workflows.mjs
+
+      - name: Smoke test webhook
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/bfp-wh.json -w "%{http_code}" --max-time 60 \
+              -X POST "https://n8n-ajs5.onrender.com/webhook/bfp-events" \
+              -H "Content-Type: application/json" \
+              -d '{"type":"traffic","action":"ci_deploy","path":"/ci","source":"github-actions"}' || true)
+            echo "attempt=$i http=$code body=$(cat /tmp/bfp-wh.json 2>/dev/null || true)"
+            if [ "$code" = "200" ] || [ "$code" = "201" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Webhook bfp-events non joignable après deploy"
+          exit 1

@@ -12,21 +12,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Ping /health
+      - name: Ping API + n8n
         run: |
           set -e
           URL="${{ vars.BFP_API_HEALTH_URL }}"
           if [ -z "$URL" ]; then
             URL="https://burundi-food-price-api.onrender.com/health"
           fi
-          echo "GET $URL"
-          for i in 1 2 3; do
-            code=$(curl -sS -o /tmp/bfp-health.json -w "%{http_code}" --max-time 60 "$URL" || true)
-            echo "attempt=$i http=$code body=$(cat /tmp/bfp-health.json 2>/dev/null || true)"
-            if [ "$code" = "200" ]; then
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "API unreachable after retries"
-          exit 1
+          N8N_URL="${{ vars.N8N_HEALTH_URL }}"
+          if [ -z "$N8N_URL" ]; then
+            N8N_URL="https://n8n-ajs5.onrender.com/healthz"
+          fi
+          ping() {
+            local name="$1" target="$2"
+            echo "GET $target ($name)"
+            for i in 1 2 3; do
+              code=$(curl -sS -o /tmp/ping.json -w "%{http_code}" --max-time 60 "$target" || true)
+              echo "  attempt=$i http=$code"
+              if [ "$code" = "200" ] || [ "$code" = "204" ]; then
+                return 0
+              fi
+              sleep 12
+            done
+            echo "$name unreachable"
+            return 1
+          }
+          ping "bfp-api" "$URL"
+          ping "n8n" "$N8N_URL"

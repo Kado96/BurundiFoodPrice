@@ -1,0 +1,325 @@
+{
+  "name": "Burundi Food Price - Monitoring & 4h Reporter",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bfp-events",
+        "responseMode": "onReceived",
+        "responseData": "OK",
+        "options": {}
+      },
+      "id": "2b000001-0000-4000-8000-000000000001",
+      "name": "Webhook Trigger (BFP Events)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ],
+      "webhookId": "bfp-events"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.type || $json.type }}",
+                    "rightValue": "collect",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.type || $json.type }}",
+                    "rightValue": "traffic",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        }
+      },
+      "id": "2b000001-0000-4000-8000-000000000002",
+      "name": "Route Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || item;\n\nconst rawData = payload.collect || payload;\nconst productName = rawData.product_name || rawData.product_id || 'Produit alimentaire';\nconst marketName = rawData.market_name || rawData.market_id || 'Marché non spécifié';\nconst price = Number(rawData.price || 0).toLocaleString('fr-FR');\nconst unit = rawData.unit || 'kg';\nconst quantity = rawData.quantity || 1;\nconst variety = rawData.variety || 'Standard';\nconst quality = rawData.quality || 'Standard';\nconst origin = rawData.origin || 'Locale';\nconst availability = rawData.availability || 'DISPONIBLE';\nconst comment = rawData.comment || 'Aucune remarque';\nconst agent = rawData.agent_email || rawData.agent_id || 'Agent de terrain';\nconst observedAt = rawData.observed_at ? new Date(rawData.observed_at).toLocaleString('fr-FR', { timeZone: 'Africa/Bujumbura' }) : new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Bujumbura' });\nconst gps = (rawData.lat && rawData.lng) ? `${rawData.lat.toFixed(5)}, ${rawData.lng.toFixed(5)}` : 'Non renseigné';\nconst mapsUrl = (rawData.lat && rawData.lng) ? `https://www.google.com/maps?q=${rawData.lat},${rawData.lng}` : null;\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Alerte Collecte Burundi Food Price</title>\n</head>\n<body style=\"margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#f1f5f9;padding:24px 12px;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border:1px solid #e2e8f0;\">\n          <!-- En-tête -->\n          <tr>\n            <td style=\"background:linear-gradient(135deg, #059669 0%, #047857 100%);padding:24px;text-align:left;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"display:inline-block;background-color:rgba(255,255,255,0.2);color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.5px;padding:4px 10px;border-radius:9999px;text-transform:uppercase;\">Alerte Directe Terrain</span>\n                    <h1 style=\"margin:8px 0 0 0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;\">Burundi Food Price</h1>\n                  </td>\n                  <td align=\"right\">\n                    <span style=\"font-size:32px;\">🌾</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <!-- Bannière Prix -->\n          <tr>\n            <td style=\"padding:24px;background-color:#f8fafc;border-bottom:1px solid #e2e8f0;\">\n              <div style=\"font-size:13px;color:#64748b;font-weight:600;text-transform:uppercase;\">Nouvelle observation enregistrée</div>\n              <div style=\"margin-top:6px;font-size:26px;font-weight:800;color:#0f172a;\">${productName}</div>\n              <div style=\"margin-top:8px;display:inline-block;background-color:#ecfdf5;border:1px solid #a7f3d0;padding:6px 14px;border-radius:8px;\">\n                <span style=\"font-size:20px;font-weight:800;color:#047857;\">${price} FBu</span>\n                <span style=\"font-size:13px;color:#065f46;font-weight:600;\"> / ${quantity} ${unit}</span>\n              </div>\n            </td>\n          </tr>\n          <!-- Détails -->\n          <tr>\n            <td style=\"padding:24px;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-size:14px;line-height:22px;\">\n                <tr>\n                  <td width=\"35%\" style=\"padding:8px 0;color:#64748b;font-weight:600;\">📍 Marché :</td>\n                  <td width=\"65%\" style=\"padding:8px 0;color:#0f172a;font-weight:700;\">${marketName}</td>\n                </tr>\n                <tr>\n                  <td style=\"padding:8px 0;color:#64748b;font-weight:600;\">🌱 Variété :</td>\n                  <td style=\"padding:8px 0;color:#0f172a;\">${variety} (${quality})</td>\n                </tr>\n                <tr>\n                  <td style=\"padding:8px 0;color:#64748b;font-weight:600;\">📦 Disponibilité :</td>\n                  <td style=\"padding:8px 0;color:#0f172a;\"><span style=\"background-color:#dcfce7;color:#15803d;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700;\">${availability}</span></td>\n                </tr>\n                <tr>\n                  <td style=\"padding:8px 0;color:#64748b;font-weight:600;\">👤 Agent / Source :</td>\n                  <td style=\"padding:8px 0;color:#0f172a;\">${agent}</td>\n                </tr>\n                <tr>\n                  <td style=\"padding:8px 0;color:#64748b;font-weight:600;\">🕒 Date observation :</td>\n                  <td style=\"padding:8px 0;color:#0f172a;\">${observedAt} (Bujumbura)</td>\n                </tr>\n                <tr>\n                  <td style=\"padding:8px 0;color:#64748b;font-weight:600;\">🌍 Coordonnées GPS :</td>\n                  <td style=\"padding:8px 0;color:#0f172a;\">\n                    ${mapsUrl ? `<a href=\"${mapsUrl}\" style=\"color:#0284c7;text-decoration:none;font-weight:600;\">${gps} ↗ (Voir sur Maps)</a>` : gps}\n                  </td>\n                </tr>\n                ${comment !== 'Aucune remarque' ? `\n                <tr>\n                  <td style=\"padding:8px 0;color:#64748b;font-weight:600;\">💬 Remarque :</td>\n                  <td style=\"padding:8px 0;color:#334155;font-style:italic;\">« ${comment} »</td>\n                </tr>` : ''}\n              </table>\n            </td>\n          </tr>\n          <!-- Bouton CTA -->\n          <tr>\n            <td align=\"center\" style=\"padding:0 24px 24px 24px;\">\n              <a href=\"https://burundifoodprice.bi/admin\" style=\"display:inline-block;background-color:#059669;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-align:center;\">\n                Accéder au back-office BFP →\n              </a>\n            </td>\n          </tr>\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color:#f8fafc;padding:16px 24px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px;\">\n              Ce message est généré automatiquement par le pipeline de monitoring Burundi Food Price &bull; n8n\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    subject: `⚡ [BFP Alerte Directe] Nouvelle collecte : ${productName} - ${price} FBu (${marketName})`,\n    html,\n    toEmail: 'quicksales.bi@gmail.com'\n  }\n}];"
+      },
+      "id": "2b000001-0000-4000-8000-000000000003",
+      "name": "Format Instant Alert HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbz7pHhek_WU73YQDjHONgFEH05f9F1RWAQg8_oiTVn4JHjD-aznOKUDd79wQY8npvb0/exec",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ secret: 'bfp-gmail-relay-2026', to: 'quicksales.bi@gmail.com', subject: $json.subject, html: $json.html }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "2b000001-0000-4000-8000-000000000004",
+      "name": "Send Instant Alert Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        100
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json.body || $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.trafficLogs = staticData.trafficLogs || [];\n\nconst entry = {\n  action: payload.action || 'page_view',\n  path: payload.path || '/',\n  user_email: payload.user_email || 'anonymous',\n  role: payload.role || 'visitor',\n  user_agent: payload.user_agent || '',\n  timestamp: payload.timestamp || new Date().toISOString()\n};\n\nstaticData.trafficLogs.push(entry);\n\n// Conserver seulement les logs des dernières 24 heures (max 2000 entrées)\nconst cutoff = Date.now() - (24 * 60 * 60 * 1000);\nstaticData.trafficLogs = staticData.trafficLogs\n  .filter(e => new Date(e.timestamp).getTime() > cutoff)\n  .slice(-2000);\n\nreturn [{\n  json: {\n    status: 'traffic_recorded',\n    trackedAction: entry.action,\n    totalBuffered: staticData.trafficLogs.length,\n    entry\n  }\n}];"
+      },
+      "id": "2b000001-0000-4000-8000-000000000005",
+      "name": "Store & Log Traffic Telemetry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */4 * * *"
+            }
+          ]
+        }
+      },
+      "id": "2b000001-0000-4000-8000-000000000006",
+      "name": "Schedule Trigger (Every 4h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://jvjxrknwbnsvgnobbfwa.supabase.co/rest/v1/observations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "created_at",
+              "value": "=gte.{{ new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "id,price,quantity,unit,variety,quality,availability,created_at,observed_at,status,agent_id,markets(name,commune),products(name)"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2anhya253Ym5zdmdub2JiZndhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNjgxMzksImV4cCI6MjEwNzc0NDEzOX0.6BU65OVL_jcuc29NnWcQ7WiT53txB5aES8aFY4Z8ong"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2anhya253Ym5zdmdub2JiZndhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNjgxMzksImV4cCI6MjEwNzc0NDEzOX0.6BU65OVL_jcuc29NnWcQ7WiT53txB5aES8aFY4Z8ong"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2b000001-0000-4000-8000-000000000007",
+      "name": "Fetch Supabase Observations (4h)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Récupération des observations Supabase\nconst rawInputs = $input.all();\nlet observations = [];\n\nif (rawInputs.length > 0) {\n  if (Array.isArray(rawInputs[0].json)) {\n    observations = rawInputs[0].json;\n  } else if (rawInputs[0].json && typeof rawInputs[0].json === 'object') {\n    observations = rawInputs.map(item => item.json).filter(Boolean);\n  }\n}\n\n// 2. Récupération des logs de trafic sur les 4 dernières heures depuis staticData\nconst staticData = $getWorkflowStaticData('global');\nconst trafficLogs = staticData.trafficLogs || [];\nconst fourHoursAgo = Date.now() - (4 * 60 * 60 * 1000);\n\nconst recentTraffic = trafficLogs.filter(e => new Date(e.timestamp).getTime() >= fourHoursAgo);\n\n// Visiteurs uniques (basé sur IP/user_agent ou email)\nconst uniqueVisitorsSet = new Set(recentTraffic.map(e => e.user_email !== 'anonymous' ? e.user_email : (e.user_agent || 'unknown')));\nconst uniqueVisitors = uniqueVisitorsSet.size;\n\n// Connexions enregistrées\nconst loginCount = recentTraffic.filter(e => e.action === 'login').length;\n\n// Métriques de collecte\nconst collectCount = observations.length;\nconst marketsSet = new Set(observations.map(o => (o.markets && o.markets.name) || o.market_id).filter(Boolean));\nconst marketsCovered = marketsSet.size;\n\n// Génération de l'horodatage en heure locale Bujumbura (UTC+2)\nconst nowStr = new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Bujumbura' });\nconst startWindowStr = new Date(fourHoursAgo).toLocaleString('fr-FR', { timeZone: 'Africa/Bujumbura' });\n\n// Construction du contenu dynamique selon présence ou absence de collectes\nlet bodyContentHtml = '';\n\nif (collectCount === 0) {\n  // Condition 0 collecte : Mention exacte obligatoire bien visible\n  bodyContentHtml = `\n    <div style=\"background-color:#fef2f2;border:2px solid #f87171;border-radius:10px;padding:24px;text-align:center;margin:20px 0;\">\n      <div style=\"font-size:36px;margin-bottom:12px;\">⚠️</div>\n      <h2 style=\"color:#991b1b;font-size:18px;font-weight:800;margin:0 0 10px 0;\">\n        Aucune activité ni collecte de prix n'a été effectuée durant les 4 dernières heures.\n      </h2>\n      <p style=\"color:#7f1d1d;font-size:14px;margin:0;line-height:20px;\">\n        Aucune nouvelle observation de prix n'a été transmise par les agents de terrain entre <strong>${startWindowStr}</strong> et <strong>${nowStr}</strong>.\n      </p>\n    </div>\n    <div style=\"background-color:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:16px;margin-top:16px;\">\n      <h4 style=\"margin:0 0 8px 0;font-size:13px;color:#475569;text-transform:uppercase;\">Points d'attention :</h4>\n      <ul style=\"margin:0;padding-left:20px;font-size:13px;color:#64748b;line-height:20px;\">\n        <li>Vérifier la connectivité réseau des équipes de terrain.</li>\n        <li>Confirmer si les marchés cibles étaient actifs sur ce créneau horaire.</li>\n        <li>Vérifier que les files d'attente hors-ligne (PWA/Capacitor) ont bien été synchronisées.</li>\n      </ul>\n    </div>\n  `;\n} else {\n  // Condition >= 1 collecte : Tableau récapitulatif détaillé\n  const rowsHtml = observations.map((o, idx) => {\n    const market = (o.markets && o.markets.name) || 'Marché non spécifié';\n    const commune = (o.markets && o.markets.commune) || '-';\n    const product = (o.products && o.products.name) || 'Produit';\n    const price = Number(o.price || 0).toLocaleString('fr-FR');\n    const unit = o.unit || 'kg';\n    const variety = o.variety ? `(${o.variety})` : '';\n    const time = o.observed_at ? new Date(o.observed_at).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Bujumbura', hour: '2-digit', minute: '2-digit' }) : '-';\n    const status = o.status || 'SYNCHRONISEE';\n    const statusColor = status === 'VALIDEE' ? '#15803d' : '#0369a1';\n    const statusBg = status === 'VALIDEE' ? '#dcfce7' : '#e0f2fe';\n    const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';\n\n    return `\n      <tr style=\"background-color:${rowBg};border-bottom:1px solid #e2e8f0;\">\n        <td style=\"padding:10px 12px;font-size:13px;font-weight:600;color:#0f172a;\">${time}</td>\n        <td style=\"padding:10px 12px;font-size:13px;color:#0f172a;font-weight:700;\">${market} <span style=\"font-size:11px;color:#64748b;font-weight:normal;\">(${commune})</span></td>\n        <td style=\"padding:10px 12px;font-size:13px;color:#0f172a;\">${product} <span style=\"font-size:11px;color:#64748b;\">${variety}</span></td>\n        <td style=\"padding:10px 12px;font-size:13px;font-weight:800;color:#047857;text-align:right;\">${price} FBu / ${unit}</td>\n        <td style=\"padding:10px 12px;text-align:center;\"><span style=\"background-color:${statusBg};color:${statusColor};padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;\">${status}</span></td>\n      </tr>\n    `;\n  }).join('');\n\n  bodyContentHtml = `\n    <div style=\"margin:20px 0;\">\n      <h3 style=\"color:#0f172a;font-size:16px;font-weight:700;margin-bottom:12px;\">\n        📋 Observations recueillies (${collectCount})\n      </h3>\n      <div style=\"overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;\">\n        <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;font-size:13px;\">\n          <thead>\n            <tr style=\"background-color:#0f172a;color:#ffffff;text-align:left;\">\n              <th style=\"padding:10px 12px;font-size:12px;text-transform:uppercase;\">Heure</th>\n              <th style=\"padding:10px 12px;font-size:12px;text-transform:uppercase;\">Marché</th>\n              <th style=\"padding:10px 12px;font-size:12px;text-transform:uppercase;\">Produit</th>\n              <th style=\"padding:10px 12px;font-size:12px;text-transform:uppercase;text-align:right;\">Prix</th>\n              <th style=\"padding:10px 12px;font-size:12px;text-transform:uppercase;text-align:center;\">Statut</th>\n            </tr>\n          </thead>\n          <tbody>\n            ${rowsHtml}\n          </tbody>\n        </table>\n      </div>\n    </div>\n  `;\n}\n\nconst fullHtml = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Rapport d'activité Burundi Food Price</title>\n</head>\n<body style=\"margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#f1f5f9;padding:24px 12px;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:680px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border:1px solid #e2e8f0;\">\n          <!-- En-tête -->\n          <tr>\n            <td style=\"background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%);padding:24px;text-align:left;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"display:inline-block;background-color:#059669;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.5px;padding:4px 10px;border-radius:9999px;text-transform:uppercase;\">Cycle Automatique 4H</span>\n                    <h1 style=\"margin:8px 0 4px 0;color:#ffffff;font-size:22px;font-weight:800;\">📊 Rapport d'activité BFP</h1>\n                    <div style=\"color:#94a3b8;font-size:13px;\">Période : ${startWindowStr} &rarr; ${nowStr} (Heure Bujumbura)</div>\n                  </td>\n                  <td align=\"right\" valign=\"top\">\n                    <span style=\"font-size:36px;\">📈</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <!-- Grille des Métriques Clés -->\n          <tr>\n            <td style=\"padding:20px 24px;background-color:#f8fafc;border-bottom:1px solid #e2e8f0;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td width=\"25%\" style=\"padding:8px;text-align:center;\">\n                    <div style=\"font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;\">Collectes</div>\n                    <div style=\"font-size:24px;font-weight:800;color:${collectCount > 0 ? '#047857' : '#dc2626'};margin-top:4px;\">${collectCount}</div>\n                  </td>\n                  <td width=\"25%\" style=\"padding:8px;text-align:center;border-left:1px solid #e2e8f0;\">\n                    <div style=\"font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;\">Marchés</div>\n                    <div style=\"font-size:24px;font-weight:800;color:#0f172a;margin-top:4px;\">${marketsCovered}</div>\n                  </td>\n                  <td width=\"25%\" style=\"padding:8px;text-align:center;border-left:1px solid #e2e8f0;\">\n                    <div style=\"font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;\">Visiteurs</div>\n                    <div style=\"font-size:24px;font-weight:800;color:#0284c7;margin-top:4px;\">${uniqueVisitors}</div>\n                  </td>\n                  <td width=\"25%\" style=\"padding:8px;text-align:center;border-left:1px solid #e2e8f0;\">\n                    <div style=\"font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;\">Connexions</div>\n                    <div style=\"font-size:24px;font-weight:800;color:#7c3aed;margin-top:4px;\">${loginCount}</div>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <!-- Corps dynamique -->\n          <tr>\n            <td style=\"padding:24px;\">\n              ${bodyContentHtml}\n            </td>\n          </tr>\n          <!-- Bouton Dashboard -->\n          <tr>\n            <td align=\"center\" style=\"padding:0 24px 24px 24px;\">\n              <a href=\"https://burundifoodprice.bi/admin\" style=\"display:inline-block;background-color:#0f172a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-align:center;\">\n                Consulter l'Observatoire National →\n              </a>\n            </td>\n          </tr>\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color:#f8fafc;padding:16px 24px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px;\">\n              Rapport périodique programmé toutes les 4 heures &bull; Burundi Food Price &bull; n8n\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    subject: \"📊 Rapport d'activité Burundi Food Price (Toutes les 4h)\",\n    toEmail: \"quicksales.bi@gmail.com\",\n    html: fullHtml,\n    collectCount,\n    marketsCovered,\n    uniqueVisitors,\n    loginCount\n  }\n}];"
+      },
+      "id": "2b000001-0000-4000-8000-000000000008",
+      "name": "Calculate Metrics & Build 4h Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbz7pHhek_WU73YQDjHONgFEH05f9F1RWAQg8_oiTVn4JHjD-aznOKUDd79wQY8npvb0/exec",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ secret: 'bfp-gmail-relay-2026', to: 'quicksales.bi@gmail.com', subject: $json.subject, html: $json.html }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "2b000001-0000-4000-8000-000000000009",
+      "name": "Send 4h Report Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        480
+      ],
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "Webhook Trigger (BFP Events)": {
+      "main": [
+        [
+          {
+            "node": "Route Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Event Type": {
+      "main": [
+        [
+          {
+            "node": "Format Instant Alert HTML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store & Log Traffic Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Instant Alert HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Instant Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (Every 4h)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Supabase Observations (4h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Supabase Observations (4h)": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics & Build 4h Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Metrics & Build 4h Report": {
+      "main": [
+        [
+          {
+            "node": "Send 4h Report Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "name": "burundi-food-price"
+    },
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "jarvis-universal"
+    }
+  ]
+}
