@@ -10,7 +10,14 @@ export default defineConfig({
     port: 3000,
     host: true,
     proxy: {
+      // Sans backend :4000 → 502. Toujours lancer `npm run dev` à la racine du monorepo.
       "/api": {
+        target: "http://127.0.0.1:4000",
+        changeOrigin: true,
+        timeout: 60_000,
+        proxyTimeout: 60_000,
+      },
+      "/health": {
         target: "http://127.0.0.1:4000",
         changeOrigin: true,
       },

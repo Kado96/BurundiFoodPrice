@@ -1,0 +1,32 @@
+# Empêche le sleep Render (plan free) qui provoque des 502 sur /api/admin/*
+name: Keep Burundi Food Price API warm
+
+on:
+  schedule:
+    # Toutes les 10 min (UTC) — sous le seuil de sleep Render (~15 min)
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        run: |
+          set -e
+          URL="${{ vars.BFP_API_HEALTH_URL }}"
+          if [ -z "$URL" ]; then
+            URL="https://burundi-food-price-api.onrender.com/health"
+          fi
+          echo "GET $URL"
+          for i in 1 2 3; do
+            code=$(curl -sS -o /tmp/bfp-health.json -w "%{http_code}" --max-time 60 "$URL" || true)
+            echo "attempt=$i http=$code body=$(cat /tmp/bfp-health.json 2>/dev/null || true)"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "API unreachable after retries"
+          exit 1

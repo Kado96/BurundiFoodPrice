@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { trackLogin } from "@/lib/telemetry";
 
 export type Role = "super_admin" | "admin" | "supervisor" | "agent";
 
@@ -13,7 +14,12 @@ export function useAuth() {
       setSession(data.session);
       setReady(true);
     });
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === "SIGNED_IN" && s?.user?.email) {
+        trackLogin(s.user.email);
+      }
+    });
     return () => data.subscription.unsubscribe();
   }, []);
   const uid = session?.user.id;

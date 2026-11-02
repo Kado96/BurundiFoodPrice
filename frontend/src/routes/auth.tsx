@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { setOptedForPublicWeb } from "@/lib/mobile";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { trackLogin } from "@/lib/telemetry";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [
@@ -76,6 +77,7 @@ function AuthPage() {
         await supabase.rpc("ensure_profile", { _full_name: name || username });
         const { data: u } = await supabase.auth.getUser();
         const { data: staff } = await supabase.rpc("is_staff", { _user_id: u.user!.id });
+        trackLogin(authEmail, staff ? "staff" : "agent");
         toast.success(lang === "rn" ? "Mwinjiye neza" : lang === "en" ? "Sign in successful" : "Connexion réussie");
         nav({ to: staff ? "/admin" : "/agent" });
       } else {

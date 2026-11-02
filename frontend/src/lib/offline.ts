@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { trackCollect } from "@/lib/telemetry";
 
 export type LocalObs = {
   client_id: string;
@@ -48,6 +49,7 @@ export async function syncQueue(onProgress?: (done: number, total: number) => vo
       });
       if (error && !error.message.includes("duplicate")) throw error;
       removeFromQueue(o.client_id); ok++;
+      trackCollect({ ...o, agent_id: uid, photo_url });
     } catch (e) {
       setQueue(getQueue().map((x) => x.client_id === o.client_id ? { ...x, status: "ERREUR", error: (e as Error).message } : x));
     }

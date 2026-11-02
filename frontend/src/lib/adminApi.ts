@@ -1,15 +1,38 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/** URL API Render. En local = proxy Vite /api → :4000 ; En prod Vercel = Render API */
+const PROD_API = "https://burundi-food-price-api.onrender.com";
+const RETRYABLE = new Set([502, 503, 504]);
+const MAX_ATTEMPTS = 3;
+
+/** URL API Render. En local = proxy Vite /api → :4000 ; En prod Vercel/Android = Render API */
 function apiBase(): string {
   const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
   if (raw) return raw.replace(/\/$/, "");
-  
-  // Si exécuté sur Vercel sans VITE_API_URL défini, pointer automatiquement vers l'API Render
-  if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-    return "https://burundi-food-price-api.onrender.com";
+
+  if (typeof window !== "undefined") {
+    // Capacitor Android/iOS : pas de proxy Vite, toujours l'API HTTPS de prod
+    const isNative = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+      ?.isNativePlatform?.();
+    if (isNative) return PROD_API;
+
+    // Vercel sans VITE_API_URL
+    if (window.location.hostname.includes("vercel.app")) return PROD_API;
   }
   return "";
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function friendlyHttpError(status: number, serverMsg?: string): string {
+  if (serverMsg && status !== 502 && status !== 503 && status !== 504) return serverMsg;
+  if (status === 502 || status === 503 || status === 504) {
+    return "API admin indisponible (redémarrage Render ou backend local arrêté). Réessayez dans quelques secondes.";
+  }
+  if (status === 401) return "Session expirée, reconnectez-vous";
+  if (status === 403) return "Réservé aux administrateurs";
+  return serverMsg || `Erreur ${status}`;
 }
 
 async function bearer(): Promise<string> {
@@ -19,20 +42,66 @@ async function bearer(): Promise<string> {
   return token;
 }
 
+/** Réveille l'API avant une action admin (cold start Render / check local). */
+export async function warmAdminApi(): Promise<boolean> {
+  const base = apiBase();
+  const healthUrl = base ? `${base}/health` : "/health";
+  try {
+    const res = await fetch(healthUrl, { method: "GET" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const base = apiBase();
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${await bearer()}`,
-      ...(init.headers || {}),
-    },
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { error?: string }).error || `Erreur ${res.status}`);
-  return json as T;
+  const token = await bearer();
+
+  let lastErr: Error | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt === 1) {
+        await warmAdminApi();
+      }
+      const res = await fetch(url, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          ...(init.headers || {}),
+        },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = friendlyHttpError(res.status, (json as { error?: string }).error);
+        if (RETRYABLE.has(res.status) && attempt < MAX_ATTEMPTS) {
+          await sleep(1500 * attempt);
+          continue;
+        }
+        throw new Error(msg);
+      }
+      return json as T;
+    } catch (err) {
+      const e = err as Error;
+      lastErr = e;
+      const isNetwork =
+        e.name === "TypeError" ||
+        /failed to fetch|networkerror|load failed|econnrefused/i.test(e.message);
+      if (isNetwork && attempt < MAX_ATTEMPTS) {
+        await sleep(1500 * attempt);
+        continue;
+      }
+      if (isNetwork) {
+        throw new Error(
+          "Impossible de joindre l'API admin. En local: lancez `npm run dev` à la racine (frontend + backend). En prod: l'API Render redémarre, réessayez.",
+        );
+      }
+      throw e;
+    }
+  }
+  throw lastErr || new Error("Erreur API");
 }
 
 export async function adminCreateUser(body: {

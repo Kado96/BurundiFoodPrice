@@ -35,44 +35,38 @@ BurunduFoodPrice/
 
 ---
 
-## 🚀 Démarrage Rapide en Local (Web)
+## 🚀 Démarrage Rapide en Local (Web + API)
 
-### 1. Cloner ou ouvrir le projet
+> **Important :** les actions admin (créer un agent, reset MDP, etc.) passent par le backend Express (`:4000`).
+> Si seul le frontend tourne, le proxy Vite renvoie **502**. Toujours démarrer la stack complète.
 
-Ouvrez un terminal dans le dossier `frontend` :
-
-```bash
-cd E:\Application\jarvis-starter-kit\deliverables\application\BurunduFoodPrice\frontend
-```
-
-### 2. Vérifier les variables d'environnement
-
-Assurez-vous que le fichier `frontend/.env` contient vos identifiants Supabase publics :
-
-```env
-VITE_SUPABASE_PROJECT_ID="jvjxrknwbnsvgnobbfwa"
-VITE_SUPABASE_URL="https://jvjxrknwbnsvgnobbfwa.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY="votre_cle_anon_jwt_ici"
-```
-
-### 3. Installer les dépendances (si premier lancement)
+### 1. Ouvrir la racine du monorepo
 
 ```bash
-bun install
-# ou avec npm :
-# npm install
+cd E:\Application\jarvis-starter-kit\deliverables\application\BurunduFoodPrice
 ```
 
-### 4. Lancer le serveur de développement
+### 2. Variables d'environnement
+
+- `frontend/.env` : clés Supabase publiques (`VITE_SUPABASE_*`)
+- `backend/.env` : `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `PORT=4000`
+
+### 3. Installer (premier lancement)
 
 ```bash
-bun run dev
-# ou avec npm :
-# npm run dev
+npm run install:all
 ```
 
-L'application démarre immédiatement sur :
-👉 **http://localhost:3000** (ou le port affiché dans votre terminal)
+### 4. Lancer frontend + backend ensemble
+
+```bash
+npm run dev
+```
+
+- Web : **http://localhost:3000**
+- API : **http://127.0.0.1:4000/health**
+
+Scripts utiles : `npm run dev:web` (frontend seul), `npm run dev:api` (API seule), `npm run health:api`.
 
 ---
 
@@ -160,12 +154,21 @@ curl http://localhost:4000/health
 |---------|-------|-------------|
 | `GET` | `/` | Informations sur l'API |
 | `GET` | `/health` | Vérification que le service est actif |
-| `GET` | `/api/admin/users` | Liste des agents et utilisateurs |
-| `POST` | `/api/admin/users` | Créer un nouvel agent ou administrateur |
-| `PATCH` | `/api/admin/users/:id` | Modifier un utilisateur |
-| `DELETE` | `/api/admin/users/:id` | Supprimer un utilisateur |
+| `POST` | `/api/admin/users` | Créer un agent / superviseur / admin |
+| `GET` | `/api/admin/users/status` | Statuts connexion / suspension |
+| `POST` | `/api/admin/users/:id/password` | Reset mot de passe |
+| `POST` | `/api/admin/users/:id/suspend` | Suspendre / réactiver |
+| `POST` | `/api/admin/observations/delete` | Suppression observations |
+| `POST` | `/api/admin/upload-photo` | Upload photo catalogue |
 
 > Toutes les routes `/api/admin/*` nécessitent un token JWT administrateur valide.
+
+### Anti-502 production
+
+- Workflow GitHub Actions `keep-api-warm.yml` ping `/health` toutes les 10 min (évite le sleep Render free).
+- Le client admin retry automatiquement les 502/503 (cold start).
+- Sur Render Dashboard : vérifier que `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` sont bien définis sur le service API.
+- Sur Vercel : définir `VITE_API_URL=https://burundi-food-price-api.onrender.com` (fallback code déjà présent pour `*.vercel.app`).
 
 ---
 
