@@ -343,7 +343,10 @@ export function Markets() {
     const { error } = edit.id
       ? await supabase.from("markets").update(row).eq("id", edit.id)
       : await supabase.from("markets").insert(row);
-    if (error) { toast.error("Échec de l'enregistrement"); return; }
+    if (error) {
+      toast.error(error.message || "Échec de l'enregistrement du marché");
+      return;
+    }
 
     // Sauvegarder la photo personnalisée
     if (photoUrl && edit.name) setPhoto(edit.name, photoUrl);
@@ -355,10 +358,17 @@ export function Markets() {
   }
 
   async function deleteMarket(m: Market) {
-    if (!window.confirm(`Confirmer la suppression définitive du marché "${m.name}" ?\nAttention : cette action peut impacter les observations associées.`)) return;
+    if (!window.confirm(`Confirmer la suppression du marché "${m.name}" ?\nS'il a des observations liées, il sera désactivé au lieu d'être effacé.`)) return;
     const { error } = await supabase.from("markets").delete().eq("id", m.id);
     if (error) {
-      toast.error(`Impossible de supprimer le marché : ${error.message}`);
+      // FK observations → soft delete
+      const { error: softErr } = await supabase.from("markets").update({ active: false }).eq("id", m.id);
+      if (softErr) {
+        toast.error(`Impossible de supprimer le marché : ${error.message}`);
+        return;
+      }
+      toast.success(`Marché "${m.name}" désactivé (données liées conservées)`);
+      qc.invalidateQueries({ queryKey: ["ref"] });
       return;
     }
     resetPhoto(m.name);
@@ -671,7 +681,10 @@ export function Products() {
     const { error } = edit.id
       ? await supabase.from("products").update(row).eq("id", edit.id)
       : await supabase.from("products").insert(row);
-    if (error) { toast.error("Échec de l'enregistrement"); return; }
+    if (error) {
+      toast.error(error.message || "Échec de l'enregistrement du produit");
+      return;
+    }
 
     // Sauvegarder la photo personnalisée
     if (photoUrl && edit.name) setPhoto(edit.name, photoUrl);
@@ -683,10 +696,16 @@ export function Products() {
   }
 
   async function deleteProduct(p: Product) {
-    if (!window.confirm(`Confirmer la suppression définitive du produit "${p.name}" ?\nAttention : cette action peut impacter les observations associées.`)) return;
+    if (!window.confirm(`Confirmer la suppression du produit "${p.name}" ?\nS'il a des observations liées, il sera désactivé au lieu d'être effacé.`)) return;
     const { error } = await supabase.from("products").delete().eq("id", p.id);
     if (error) {
-      toast.error(`Impossible de supprimer le produit : ${error.message}`);
+      const { error: softErr } = await supabase.from("products").update({ active: false }).eq("id", p.id);
+      if (softErr) {
+        toast.error(`Impossible de supprimer le produit : ${error.message}`);
+        return;
+      }
+      toast.success(`Produit "${p.name}" désactivé (données liées conservées)`);
+      qc.invalidateQueries({ queryKey: ["ref"] });
       return;
     }
     resetPhoto(p.name);
@@ -697,8 +716,13 @@ export function Products() {
   async function addCat() {
     if (!cat.trim()) return;
     const { error } = await supabase.from("categories").insert({ name: cat.trim(), sort: (d?.categories.length ?? 0) + 1 });
-    if (error) { toast.error("Échec"); return; }
-    setCat(""); toast.success("Catégorie ajoutée"); qc.invalidateQueries({ queryKey: ["ref"] });
+    if (error) {
+      toast.error(error.message || "Échec ajout catégorie");
+      return;
+    }
+    setCat("");
+    toast.success("Catégorie ajoutée");
+    qc.invalidateQueries({ queryKey: ["ref"] });
   }
 
   return (

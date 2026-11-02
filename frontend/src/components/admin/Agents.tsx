@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { KeyRound, Plus, ShieldOff, ShieldCheck } from "lucide-react";
+import { KeyRound, Plus, ShieldOff, ShieldCheck, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRef, fmtDate } from "@/lib/data";
-import { adminCreateUser, adminResetPassword, adminSetSuspended, adminListUserStatus } from "@/lib/adminApi";
+import {
+  adminCreateUser,
+  adminResetPassword,
+  adminSetSuspended,
+  adminListUserStatus,
+  adminDeleteUser,
+} from "@/lib/adminApi";
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: "Super admin",
@@ -18,8 +24,8 @@ const input = "h-10 w-full rounded-md border bg-background px-3 text-sm";
 export function Agents() {
   const qc = useQueryClient();
   const ref = useRef();
-  const { roles: myRoles } = useAuth();
-  const isSuper = myRoles.includes("super_admin");
+  const { roles: myRoles, user } = useAuth();
+  const isAdmin = myRoles.includes("super_admin") || myRoles.includes("admin");
   const [showNew, setShowNew] = useState(false);
 
   const users = useQuery({
@@ -29,7 +35,9 @@ export function Agents() {
         supabase.from("profiles").select("*").order("full_name"),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("agent_markets").select("agent_id, market_id"),
-        adminListUserStatus().catch(() => [] as { id: string; last_sign_in_at: string | null; suspended: boolean }[]),
+        adminListUserStatus().catch(
+          () => [] as { id: string; last_sign_in_at: string | null; suspended: boolean }[],
+        ),
       ]);
       const statusMap = Object.fromEntries((status ?? []).map((s) => [s.id, s]));
       return (p.data ?? []).map((u) => ({
@@ -70,6 +78,17 @@ export function Agents() {
     }
   }
 
+  async function removeUser(id: string, name: string) {
+    if (!window.confirm(`Supprimer définitivement le compte « ${name} » ?`)) return;
+    try {
+      await adminDeleteUser(id);
+      toast.success("Compte supprimé");
+      reload();
+    } catch (err) {
+      toast.error((err as Error).message || "Suppression impossible");
+    }
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -78,10 +97,19 @@ export function Agents() {
           onClick={() => setShowNew(!showNew)}
           className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
         >
-          <Plus className="h-4 w-4" />Nouvel utilisateur
+          <Plus className="h-4 w-4" />
+          Nouvel utilisateur
         </button>
       </div>
-      {showNew && <NewUser isSuper={isSuper} onDone={() => { setShowNew(false); reload(); }} />}
+      {showNew && (
+        <NewUser
+          canCreateAdmin={isAdmin}
+          onDone={() => {
+            setShowNew(false);
+            reload();
+          }}
+        />
+      )}
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left">
@@ -105,7 +133,11 @@ export function Agents() {
                     </span>
                   )}
                 </td>
-                <td className="p-3 text-muted-foreground">{u.email}<br />{u.phone}</td>
+                <td className="p-3 text-muted-foreground">
+                  {u.email}
+                  <br />
+                  {u.phone}
+                </td>
                 <td className="p-3">
                   {u.roles.map((r) => (
                     <span key={r} className="mr-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-xs">
@@ -113,10 +145,12 @@ export function Agents() {
                     </span>
                   ))}
                 </td>
-                <td className="p-3"><MarketsCell userId={u.id} current={u.markets} names={mk} onSaved={reload} /></td>
+                <td className="p-3">
+                  <MarketsCell userId={u.id} current={u.markets} names={mk} onSaved={reload} />
+                </td>
                 <td className="p-3 text-muted-foreground">{u.last ? fmtDate(u.last) : "jamais"}</td>
                 <td className="p-3">
-                  {!u.roles.includes("super_admin") && (
+                  {!u.roles.includes("super_admin") && u.id !== user?.id && (
                     <div className="flex gap-1">
                       <button
                         title="Réinitialiser le mot de passe"
@@ -130,7 +164,18 @@ export function Agents() {
                         onClick={() => suspend(u.id, !u.suspended)}
                         className="rounded border p-1.5"
                       >
-                        {u.suspended ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4 text-destructive" />}
+                        {u.suspended ? (
+                          <ShieldCheck className="h-4 w-4" />
+                        ) : (
+                          <ShieldOff className="h-4 w-4 text-destructive" />
+                        )}
+                      </button>
+                      <button
+                        title="Supprimer le compte"
+                        onClick={() => removeUser(u.id, u.full_name || u.email || u.id)}
+                        className="rounded border border-destructive/30 p-1.5 text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   )}
@@ -161,8 +206,26 @@ function MarketsCell({
   async function save() {
     const add = sel.filter((x) => !current.includes(x));
     const del = current.filter((x) => !sel.includes(x));
-    if (del.length) await supabase.from("agent_markets").delete().eq("agent_id", userId).in("market_id", del);
-    if (add.length) await supabase.from("agent_markets").insert(add.map((market_id) => ({ agent_id: userId, market_id })));
+    if (del.length) {
+      const { error } = await supabase
+        .from("agent_markets")
+        .delete()
+        .eq("agent_id", userId)
+        .in("market_id", del);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    }
+    if (add.length) {
+      const { error } = await supabase
+        .from("agent_markets")
+        .insert(add.map((market_id) => ({ agent_id: userId, market_id })));
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    }
     toast.success("Affectations enregistrées");
     setEdit(false);
     onSaved();
@@ -170,8 +233,18 @@ function MarketsCell({
 
   if (!edit)
     return (
-      <button onClick={() => { setSel(current); setEdit(true); }} className="text-left hover:underline">
-        {current.length ? current.map((m) => names[m]).join(", ") : <span className="text-muted-foreground">Aucun — affecter</span>}
+      <button
+        onClick={() => {
+          setSel(current);
+          setEdit(true);
+        }}
+        className="text-left hover:underline"
+      >
+        {current.length ? (
+          current.map((m) => names[m]).join(", ")
+        ) : (
+          <span className="text-muted-foreground">Aucun — affecter</span>
+        )}
       </button>
     );
 
@@ -193,13 +266,15 @@ function MarketsCell({
         <button onClick={save} className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground">
           Enregistrer
         </button>
-        <button onClick={() => setEdit(false)} className="text-xs">Annuler</button>
+        <button onClick={() => setEdit(false)} className="text-xs">
+          Annuler
+        </button>
       </div>
     </div>
   );
 }
 
-function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) {
+function NewUser({ canCreateAdmin, onDone }: { canCreateAdmin: boolean; onDone: () => void }) {
   const ref = useRef();
   const [f, setF] = useState({
     full_name: "",
@@ -213,6 +288,14 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (f.full_name.trim().length < 2) {
+      toast.error("Nom : 2 caractères minimum");
+      return;
+    }
+    if (!f.email.trim()) {
+      toast.error("Identifiant requis");
+      return;
+    }
     if (f.password.length < 3) {
       toast.error("Mot de passe : 3 caractères minimum");
       return;
@@ -220,14 +303,14 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
     setBusy(true);
     try {
       const created = await adminCreateUser({
-        full_name: f.full_name,
-        email: f.email,
-        phone: f.phone || null,
+        full_name: f.full_name.trim(),
+        email: f.email.trim(),
+        phone: f.phone.trim() || null,
         password: f.password,
         role: f.role,
         market_ids: f.market_ids,
       });
-      toast.success(`Compte créé pour ${f.full_name} (${created.email || created.id})`);
+      toast.success(`Compte créé : ${f.full_name} (${created.email || created.id})`);
       onDone();
     } catch (err) {
       toast.error((err as Error).message || "Création impossible");
@@ -241,28 +324,59 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
       <h3 className="text-lg font-bold md:col-span-2">Créer un compte</h3>
       <label className="text-sm">
         Nom complet
-        <input required className={input} value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} />
+        <input
+          required
+          className={input}
+          value={f.full_name}
+          onChange={(e) => setF({ ...f, full_name: e.target.value })}
+        />
       </label>
       <label className="text-sm">
         Nom d'utilisateur ou E-mail (identifiant de connexion)
-        <input required type="text" placeholder="Ex: agent1 ou agent@bfp.bi" className={input} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        <input
+          required
+          type="text"
+          placeholder="Ex: agent1 ou admin@bfp.bi"
+          className={input}
+          value={f.email}
+          onChange={(e) => setF({ ...f, email: e.target.value })}
+        />
       </label>
       <label className="text-sm">
         Téléphone
-        <input className={input} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+257 …" />
+        <input
+          className={input}
+          value={f.phone}
+          onChange={(e) => setF({ ...f, phone: e.target.value })}
+          placeholder="+257 …"
+        />
       </label>
       <label className="text-sm">
-        Mot de passe / Code PIN (min. 3 chiffres)
-        <input required minLength={3} placeholder="Ex: 123" className={input} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+        Mot de passe / Code PIN (min. 3)
+        <input
+          required
+          minLength={3}
+          placeholder="Ex: 123"
+          className={input}
+          value={f.password}
+          onChange={(e) => setF({ ...f, password: e.target.value })}
+        />
       </label>
       <label className="text-sm">
         Rôle
-        <select className={input} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as any })}>
+        <select
+          className={input}
+          value={f.role}
+          onChange={(e) => setF({ ...f, role: e.target.value as "agent" | "supervisor" | "admin" })}
+        >
           <option value="agent">Agent de terrain</option>
           <option value="supervisor">Superviseur</option>
-          {isSuper && <option value="admin">Administrateur</option>}
+          {canCreateAdmin && <option value="admin">Administrateur</option>}
         </select>
       </label>
+      <p className="text-xs text-muted-foreground md:col-span-2">
+        Sans @, l'identifiant devient automatiquement <code>nom@bfp.bi</code>.
+      </p>
       <div className="text-sm md:col-span-2">
         Marchés affectés
         <div className="mt-1 grid grid-cols-2 gap-1 rounded-md border p-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -286,7 +400,10 @@ function NewUser({ isSuper, onDone }: { isSuper: boolean; onDone: () => void }) 
         </div>
       </div>
       <div className="md:col-span-2">
-        <button disabled={busy} className="h-10 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground">
+        <button
+          disabled={busy}
+          className="h-10 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground disabled:opacity-60"
+        >
           {busy ? "Création…" : "Créer le compte"}
         </button>
       </div>

@@ -73,13 +73,18 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
           ...(init.headers || {}),
         },
       });
-      const json = await res.json().catch(() => ({}));
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        field?: string | null;
+      };
       if (!res.ok) {
-        const msg = friendlyHttpError(res.status, (json as { error?: string }).error);
+        const detail = json.field ? `${json.error || "Erreur"} (${json.field})` : json.error;
+        const msg = friendlyHttpError(res.status, detail);
         if (RETRYABLE.has(res.status) && attempt < MAX_ATTEMPTS) {
           await sleep(1500 * attempt);
           continue;
         }
+        console.error("[adminApi]", res.status, path, json);
         throw new Error(msg);
       }
       return json as T;
@@ -129,6 +134,12 @@ export async function adminSetSuspended(id: string, suspended: boolean) {
   return api<{ ok: true }>(`/api/admin/users/${id}/suspend`, {
     method: "POST",
     body: JSON.stringify({ suspended }),
+  });
+}
+
+export async function adminDeleteUser(id: string) {
+  return api<{ ok: true }>(`/api/admin/users/${id}`, {
+    method: "DELETE",
   });
 }
 

@@ -14,28 +14,63 @@ function toAuthEmail(raw) {
 
 function toAuthPassword(raw) {
   const p = String(raw);
-  if (p.length >= 3 && p.length < 6) return `bfp#${p}#2026`;
+  // Supabase refuse souvent les PIN courts / 100% numériques → toujours une forme forte
+  if (p.length < 6 || /^\d+$/.test(p)) return `bfp#${p}#2026`;
   return p;
 }
 
+const uuidOk = (v) =>
+  typeof v === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
 const createUserSchema = z.object({
-  full_name: z.string().trim().min(2).max(100),
-  email: z.string().trim().min(1).max(255),
-  phone: z.string().trim().max(40).optional().nullable(),
-  password: z.string().min(3).max(72),
-  role: z.enum(["agent", "supervisor", "admin"]),
-  market_ids: z.array(z.string().uuid()).max(100).default([]),
+  full_name: z.string().trim().min(2, "Nom : 2 caractères minimum").max(100),
+  email: z.string().trim().min(1, "Identifiant requis").max(255),
+  phone: z
+    .union([z.string(), z.null(), z.undefined()])
+    .transform((v) => {
+      if (v == null) return null;
+      const t = String(v).trim();
+      return t ? t.slice(0, 40) : null;
+    }),
+  password: z.string().min(3, "Mot de passe : 3 caractères minimum").max(72),
+  role: z.enum(["agent", "supervisor", "admin"], {
+    errorMap: () => ({ message: "Rôle invalide" }),
+  }),
+  market_ids: z.preprocess(
+    (v) => (Array.isArray(v) ? v : []),
+    z.array(z.string()).max(100).transform((arr) => arr.filter(uuidOk)),
+  ),
 });
 
 router.post("/users", requireAdmin, async (req, res) => {
   try {
     const body = createUserSchema.parse(req.body);
-    if (body.role === "admin" && !req.isSuper) {
-      return res.status(403).json({ error: "Seul le super admin peut créer un administrateur" });
-    }
+    // Tout admin peut créer agent / superviseur / administrateur.
+    // super_admin reste réservé (non exposé dans le formulaire).
     const email = toAuthEmail(body.email);
     const password = toAuthPassword(body.password);
     const admin = createAdminClient();
+
+    console.log("[createUser] attempt", {
+      email,
+      role: body.role,
+      markets: body.market_ids.length,
+      nameLen: body.full_name.length,
+      pwdLen: password.length,
+    });
+
+    try {
+      const { data: existing } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const taken = (existing?.users ?? []).some((u) => (u.email || "").toLowerCase() === email);
+      if (taken) {
+        return res.status(400).json({
+          error: `Cet identifiant est déjà utilisé (${email}). Choisissez un autre nom d'utilisateur.`,
+        });
+      }
+    } catch (listErr) {
+      console.warn("[createUser] listUsers skip:", listErr?.message || listErr);
+    }
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
@@ -44,42 +79,90 @@ router.post("/users", requireAdmin, async (req, res) => {
       user_metadata: { full_name: body.full_name },
     });
     if (createErr) {
-      const msg = createErr.message?.toLowerCase().includes("already")
-        ? "Cet identifiant est déjà utilisé"
-        : createErr.message;
+      console.error("[createUser] supabase:", createErr.message, createErr.code || "", { email });
+      const lower = (createErr.message || "").toLowerCase();
+      let msg = createErr.message || "Création impossible";
+      if (lower.includes("already") || lower.includes("registered") || createErr.code === "email_exists") {
+        msg = `Cet identifiant est déjà utilisé (${email})`;
+      } else if (lower.includes("password")) {
+        msg = "Mot de passe refusé par Supabase. Utilisez au moins 3 caractères (PIN accepté).";
+      } else if (lower.includes("email") || lower.includes("invalid")) {
+        msg = `Identifiant / e-mail invalide (${email})`;
+      }
       return res.status(400).json({ error: msg });
     }
 
     const uid = created.user.id;
-    await admin.from("profiles").upsert({
+    const { error: profileErr } = await admin.from("profiles").upsert({
       id: uid,
       full_name: body.full_name,
       email,
       phone: body.phone || null,
     });
+    if (profileErr) console.error("[createUser] profile:", profileErr.message);
 
     const roles = body.role === "agent" ? ["agent"] : ["agent", body.role];
     for (const role of roles) {
-      await admin.from("user_roles").upsert(
+      const { error: roleErr } = await admin.from("user_roles").upsert(
         { user_id: uid, role },
         { onConflict: "user_id,role", ignoreDuplicates: true },
       );
+      if (roleErr) {
+        // Fallback insert si upsert ignoreDuplicates échoue selon version client
+        const { error: insErr } = await admin.from("user_roles").insert({ user_id: uid, role });
+        if (insErr && !String(insErr.message || "").toLowerCase().includes("duplicate")) {
+          console.error("[createUser] role:", role, insErr.message);
+        }
+      }
     }
 
     if (body.market_ids.length) {
-      await admin.from("agent_markets").upsert(
+      const { error: mkErr } = await admin.from("agent_markets").upsert(
         body.market_ids.map((market_id) => ({ agent_id: uid, market_id })),
         { onConflict: "agent_id,market_id", ignoreDuplicates: true },
       );
+      if (mkErr) console.error("[createUser] markets:", mkErr.message);
     }
 
-    return res.json({ ok: true, id: uid, email });
+    return res.json({ ok: true, id: uid, email, role: body.role });
   } catch (err) {
     if (err?.name === "ZodError") {
-      return res.status(400).json({ error: err.errors?.[0]?.message || "Données invalides" });
+      const issue = err.issues?.[0] || err.errors?.[0];
+      console.error("[createUser] zod:", issue);
+      return res.status(400).json({
+        error: issue?.message || "Données invalides",
+        field: issue?.path?.join(".") || null,
+      });
     }
     console.error("[createUser]", err);
     return res.status(500).json({ error: err.message || "Erreur serveur" });
+  }
+});
+
+router.delete("/users/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = z.string().uuid().parse(req.params.id);
+    if (id === req.user.id) {
+      return res.status(400).json({ error: "Vous ne pouvez pas supprimer votre propre compte" });
+    }
+    const admin = createAdminClient();
+    const { data: targetRoles } = await admin.from("user_roles").select("role").eq("user_id", id);
+    const roles = (targetRoles ?? []).map((r) => r.role);
+    if (roles.includes("super_admin")) {
+      return res.status(403).json({ error: "Impossible de supprimer un super administrateur" });
+    }
+    await admin.from("agent_markets").delete().eq("agent_id", id);
+    await admin.from("user_roles").delete().eq("user_id", id);
+    await admin.from("profiles").delete().eq("id", id);
+    const { error } = await admin.auth.admin.deleteUser(id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ ok: true });
+  } catch (err) {
+    if (err?.name === "ZodError") {
+      return res.status(400).json({ error: "Identifiant utilisateur invalide" });
+    }
+    console.error("[deleteUser]", err);
+    return res.status(500).json({ error: err.message || "Erreur" });
   }
 });
 
