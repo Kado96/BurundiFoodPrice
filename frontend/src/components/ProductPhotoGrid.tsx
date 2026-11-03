@@ -66,7 +66,7 @@ export function ProductPhotoGrid({ products, loading }: Props) {
           <Link
             key={p.id}
             to="/produits"
-            search={{ product: p.id } as any}
+            search={{ product: p.id }}
             className="group rounded-xl overflow-hidden border bg-card shadow-sm hover:shadow-md transition-shadow"
           >
             {/* Photo */}

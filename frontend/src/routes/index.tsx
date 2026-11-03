@@ -271,7 +271,7 @@ function Home() {
                           <td className="p-3 text-right">
                             <Link
                               to="/produits"
-                              search={{ product: n.id } as any}
+                              search={{ product: n.id }}
                               className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                             >
                               Détails <ArrowRight className="h-3 w-3" />

@@ -1,13 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useLatest, useRef, useSeries, fbu, pct, fmtDate } from "@/lib/data";
 import { Avail, Delta, Page, Stat } from "@/components/bits";
 import { useI18n } from "@/lib/i18n";
 import { PRODUCT_IMAGES, getProductFallback } from "@/lib/images";
-import { TrendingUp, TrendingDown, Minus, MapPin, Calendar, ArrowRight, BarChart3, LineChart as ChartIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, MapPin, Calendar, ArrowRight, BarChart3, LineChart as ChartIcon, Search } from "lucide-react";
+
+type ProduitsSearch = { product?: string };
 
 export const Route = createFileRoute("/produits")({
+  validateSearch: (search: Record<string, unknown>): ProduitsSearch => ({
+    product: typeof search.product === "string" && search.product ? search.product : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Suivi des prix par produit — Burundi Food Price" },
@@ -34,11 +39,14 @@ const VIBRANT_COLORS = [
 
 function ProduitsPage() {
   const { t, tm, tp } = useI18n();
+  const navigate = useNavigate({ from: "/produits" });
+  const { product: productFromUrl } = Route.useSearch();
   const ref = useRef();
   const latest = useLatest();
   const d = ref.data;
-  const [productId, setProductId] = useState("");
+  const [productId, setProductId] = useState(productFromUrl ?? "");
   const [days, setDays] = useState(90);
+  const [productQuery, setProductQuery] = useState("");
 
   const periods = [
     { d: 30, l: t("days30") },
@@ -47,9 +55,37 @@ function ProduitsPage() {
     { d: 365, l: t("year1") },
   ];
 
+  // Sync depuis ?product=… (lien accueil / grille / tableau)
   useEffect(() => {
-    if (!productId && d?.products[0]) setProductId(d.products[0].id);
-  }, [d, productId]);
+    if (!d?.products?.length) return;
+    const fromUrl =
+      productFromUrl && d.products.some((p) => p.id === productFromUrl)
+        ? productFromUrl
+        : null;
+    if (fromUrl) {
+      if (productId !== fromUrl) setProductId(fromUrl);
+      return;
+    }
+    if (!productId || !d.products.some((p) => p.id === productId)) {
+      setProductId(d.products[0]!.id);
+    }
+  }, [d, productFromUrl, productId]);
+
+  const selectProduct = (id: string) => {
+    setProductId(id);
+    void navigate({ search: { product: id }, replace: true });
+  };
+
+  const filteredProducts = useMemo(() => {
+    const list = d?.products ?? [];
+    const q = productQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((p) => {
+      const name = p.name.toLowerCase();
+      const translated = tp(p.name).toLowerCase();
+      return name.includes(q) || translated.includes(q);
+    });
+  }, [d?.products, productQuery, tp]);
 
   const series = useSeries(productId || undefined, days);
   const mktName = useMemo(() => Object.fromEntries((d?.markets ?? []).map((m) => [m.id, m.name])), [d]);
@@ -96,33 +132,53 @@ function ProduitsPage() {
       ═══════════════════════════════════════════════ */}
       <section className="border-b bg-card shadow-xs">
         <div className="mx-auto max-w-7xl px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Sélectionnez un produit vivrier :
-          </p>
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Sélectionnez un produit vivrier :
+            </p>
+            <label htmlFor="products-search-input" className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                id="products-search-input"
+                name="product_search"
+                autoComplete="off"
+                value={productQuery}
+                onChange={(e) => setProductQuery(e.target.value)}
+                placeholder="Rechercher un produit..."
+                className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+          </div>
           <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
-            {d?.products.map((p) => {
-              const active = p.id === productId;
-              const photo = PRODUCT_IMAGES[p.name] || getProductFallback(p.name);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setProductId(p.id)}
-                  className={`flex shrink-0 items-center gap-2 rounded-xl border p-1.5 pr-3 text-xs font-semibold transition-all ${
-                    active
-                      ? "border-primary bg-primary/10 text-primary shadow-xs ring-2 ring-primary/30"
-                      : "border-border bg-background hover:bg-muted/50 text-foreground"
-                  }`}
-                >
-                  <img
-                    src={photo}
-                    alt={p.name}
-                    className="h-8 w-8 rounded-lg object-cover"
-                  />
-                  <span>{tp(p.name)}</span>
-                </button>
-              );
-            })}
+            {filteredProducts.length === 0 ? (
+              <p className="py-2 text-xs text-muted-foreground">
+                Aucun produit ne correspond à « {productQuery.trim()} ».
+              </p>
+            ) : (
+              filteredProducts.map((p) => {
+                const active = p.id === productId;
+                const photo = PRODUCT_IMAGES[p.name] || getProductFallback(p.name);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => selectProduct(p.id)}
+                    className={`flex shrink-0 items-center gap-2 rounded-xl border p-1.5 pr-3 text-xs font-semibold transition-all ${
+                      active
+                        ? "border-primary bg-primary/10 text-primary shadow-xs ring-2 ring-primary/30"
+                        : "border-border bg-background hover:bg-muted/50 text-foreground"
+                    }`}
+                  >
+                    <img
+                      src={photo}
+                      alt={p.name}
+                      className="h-8 w-8 rounded-lg object-cover"
+                    />
+                    <span>{tp(p.name)}</span>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       </section>

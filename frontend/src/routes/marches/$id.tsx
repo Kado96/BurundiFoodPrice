@@ -195,7 +195,7 @@ function MarchePage() {
                       <td className="p-3.5">
                         <Link
                           to="/produits"
-                          search={{ product: p.id } as any}
+                          search={{ product: p.id }}
                           className="font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1"
                         >
                           {tp(p.name)}
