@@ -6,7 +6,8 @@
   "description": "API admin Burundi Food Price — Render + Supabase",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "node src/index.js",
+    "dev:watch": "node --watch src/index.js",
     "sync": "node ../../jarvis-universal-db-sync/src/cli.js",
     "sync:dry": "node ../../jarvis-universal-db-sync/src/cli.js --dry-run",
     "start": "node src/index.js"

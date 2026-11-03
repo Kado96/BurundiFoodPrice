@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const PROD_API = "https://burundi-food-price-api.onrender.com";
 const RETRYABLE = new Set([502, 503, 504]);
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 2;
 
 /** URL API Render. En local = proxy Vite /api → :4000 ; En prod Vercel/Android = Render API */
 function apiBase(): string {

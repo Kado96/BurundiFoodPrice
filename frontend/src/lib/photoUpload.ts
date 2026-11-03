@@ -44,41 +44,41 @@ export async function uploadCatalogPhoto(opts: {
   let path: string | undefined;
   let source: "api" | "storage" | "local" = "local";
 
-  // 1. Backend admin
+  // 1. Upload direct Storage d’abord (marche sans backend local / API Render froide)
   try {
-    const res = await adminUploadPhoto({
-      type: opts.type,
-      name: targetName,
-      dataUrl: opts.dataUrl,
+    const { blob, contentType, ext } = dataUrlToBlob(opts.dataUrl);
+    const slug = slugify(targetName) || opts.type;
+    const folder = opts.type === "library" ? "library" : `${opts.type}s`;
+    path = `catalogs/${folder}/${slug}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("photos").upload(path, blob, {
+      contentType,
+      upsert: true,
     });
-    if (res?.url) {
-      url = res.url;
-      path = res.path;
-      source = "api";
+    if (error) throw error;
+    const { data } = supabase.storage.from("photos").getPublicUrl(path);
+    if (data?.publicUrl) {
+      url = data.publicUrl;
+      source = "storage";
     }
   } catch (err) {
-    console.warn("[photoUpload] API failed, try direct storage:", err);
+    console.warn("[photoUpload] storage failed, try API admin:", err);
   }
 
-  // 2. Upload direct Supabase
+  // 2. Backend admin (service role) si Storage client a échoué (RLS, etc.)
   if (!url) {
     try {
-      const { blob, contentType, ext } = dataUrlToBlob(opts.dataUrl);
-      const slug = slugify(targetName) || opts.type;
-      const folder = opts.type === "library" ? "library" : `${opts.type}s`;
-      path = `catalogs/${folder}/${slug}_${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("photos").upload(path, blob, {
-        contentType,
-        upsert: true,
+      const res = await adminUploadPhoto({
+        type: opts.type,
+        name: targetName,
+        dataUrl: opts.dataUrl,
       });
-      if (error) throw error;
-      const { data } = supabase.storage.from("photos").getPublicUrl(path);
-      if (data?.publicUrl) {
-        url = data.publicUrl;
-        source = "storage";
+      if (res?.url) {
+        url = res.url;
+        path = res.path;
+        source = "api";
       }
     } catch (err) {
-      console.warn("[photoUpload] storage failed, keep local:", err);
+      console.warn("[photoUpload] API failed:", err);
     }
   }
 
