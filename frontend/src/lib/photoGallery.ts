@@ -205,7 +205,18 @@ function applyGalleryLocal(payload: GalleryPayload) {
 
 export async function fetchGalleryFromCloud(): Promise<GalleryPayload | null> {
   try {
-    // download() évite le GET public 400 bruyant si gallery.json n'existe pas encore
+    // list() d’abord : évite un 400 Network bruyant si gallery.json n’existe pas encore
+    const folder = GALLERY_OBJECT_PATH.includes("/")
+      ? GALLERY_OBJECT_PATH.slice(0, GALLERY_OBJECT_PATH.lastIndexOf("/"))
+      : "";
+    const fileName = GALLERY_OBJECT_PATH.split("/").pop()!;
+    const { data: listed, error: listErr } = await supabase.storage.from("photos").list(folder || undefined, {
+      search: fileName,
+      limit: 20,
+    });
+    if (listErr) return null;
+    if (!listed?.some((f) => f.name === fileName)) return null;
+
     const { data, error } = await supabase.storage.from("photos").download(GALLERY_OBJECT_PATH);
     if (error || !data) return null;
     const json = JSON.parse(await data.text()) as GalleryPayload;

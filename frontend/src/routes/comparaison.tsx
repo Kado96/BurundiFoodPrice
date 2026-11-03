@@ -54,30 +54,33 @@ function ComparaisonPage() {
   const allMarkets = useMemo(() => d?.markets ?? [], [d]);
   const mkt = useMemo(() => Object.fromEntries(allMarkets.map((m) => [m.id, m.name])), [allMarkets]);
 
-  // Tous les marchés avec prix pour le produit sélectionné
+  // Marchés ayant un prix validé pour le produit sélectionné
   const productBars = useMemo(() => {
     return (latest.data ?? [])
       .filter((l) => l.product_id === productId)
-      .map((l) => ({ name: mkt[l.market_id] ?? "?", id: l.market_id, prix: Number(l.unit_price) }))
+      .map((l) => ({
+        name: (mkt[l.market_id] ?? "?").trim(),
+        id: l.market_id,
+        prix: Number(l.unit_price),
+      }))
       .sort((a, b) => a.prix - b.prix);
   }, [latest.data, productId, mkt]);
 
-  // Initialisation par défaut : les 3 premiers marchés ou les 2 extrêmes si rien n'est sélectionné
+  // Réinit + sélection auto de TOUS les marchés ayant un prix (même s’il n’y en a qu’un)
+  const pricedMarketKey = productBars.map((b) => b.id).join("|");
   useEffect(() => {
-    if (productBars.length >= 2 && selectedMarkets.length === 0) {
-      if (productBars.length <= 4) {
-        setSelectedMarkets(productBars.map((b) => b.id));
-      } else {
-        // Le moins cher et le plus cher par défaut
-        setSelectedMarkets([productBars[0]!.id, productBars[productBars.length - 1]!.id]);
-      }
+    if (!productId) return;
+    if (!pricedMarketKey) {
+      setSelectedMarkets([]);
+      return;
     }
-  }, [productBars, selectedMarkets.length]);
-
-  // Réinitialiser la sélection au changement de produit pour s'adapter aux marchés disponibles
-  useEffect(() => {
-    setSelectedMarkets([]);
-  }, [productId]);
+    const ids = pricedMarketKey.split("|");
+    if (ids.length <= 4) {
+      setSelectedMarkets(ids);
+    } else {
+      setSelectedMarkets([ids[0]!, ids[ids.length - 1]!]);
+    }
+  }, [productId, pricedMarketKey]);
 
   // Options pour le composant MultiSelect
   const marketOptions = useMemo(() => {
@@ -223,6 +226,18 @@ function ComparaisonPage() {
               maxBadges={3}
             />
           </div>
+
+          {productBars.length === 0 && productId && (
+            <p className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+              Aucun prix validé pour ce produit. Collectez sur le terrain puis validez en back-office pour comparer les marchés.
+            </p>
+          )}
+          {productBars.length === 1 && (
+            <p className="mt-4 rounded-xl border border-sky-300/60 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:bg-sky-950/30 dark:text-sky-100">
+              Un seul marché a un prix validé pour ce produit ({tm(productBars[0]!.name)}).
+              Pour comparer au moins deux marchés, validez des collectes sur un second marché.
+            </p>
+          )}
 
           {/* Cartes d'aperçu des marchés sélectionnés */}
           {displayedBars.length > 0 && (

@@ -78,39 +78,65 @@ function CartePage() {
     }));
   }, [d, tp]);
 
+  // « Tout sélectionner » dans MultiSelect = tous les IDs cochés.
+  // Pour le filtre, c’est équivalent à « aucun filtre » (sinon 0 marqueur si latest_prices est vide / partiel).
+  const provinceFilterOn =
+    selectedProvinces.length > 0 && selectedProvinces.length < provinceOptions.length;
+  const communeFilterOn =
+    selectedCommunes.length > 0 && selectedCommunes.length < communeOptions.length;
+  const marketFilterOn =
+    selectedMarkets.length > 0 && selectedMarkets.length < marketOptions.length;
+  const productFilterOn =
+    selectedProducts.length > 0 && selectedProducts.length < productOptions.length;
+
   // Filtrage des marchés affichés sur la carte
   const markets = useMemo(() => {
     if (!d) return [];
-    
-    // Si des produits sont sélectionnés, récupérer l'ensemble des marchés ayant au moins un de ces produits
+
+    // Filtre produit uniquement si un SOUS-ensemble de produits est choisi
     let withProductsSet: Set<string> | null = null;
-    if (selectedProducts.length > 0) {
+    if (productFilterOn) {
       withProductsSet = new Set(
         (latest.data ?? [])
           .filter((l) => selectedProducts.includes(l.product_id))
-          .map((l) => l.market_id)
+          .map((l) => l.market_id),
       );
     }
 
     return d.markets.filter((m) => {
-      // Filtre province (si aucune province sélectionnée, toutes sont acceptées)
-      const matchesProvince = selectedProvinces.length === 0 || selectedProvinces.includes(m.province_id);
-      // Filtre commune
-      const matchesCommune = selectedCommunes.length === 0 || (m.commune && selectedCommunes.includes(m.commune));
-      // Filtre marché spécifique
-      const matchesMarket = selectedMarkets.length === 0 || selectedMarkets.includes(m.id);
-      // Filtre produit (si aucun produit sélectionné, tous sont acceptés)
+      if (m.active === false) return false;
+      const lat = Number(m.lat);
+      const lng = Number(m.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+      // Hors enveloppe Burundi approximative → ignorer (évite marqueurs invisibles)
+      if (lat < -5.2 || lat > -2.2 || lng < 28.8 || lng > 31.0) return false;
+
+      const matchesProvince = !provinceFilterOn || selectedProvinces.includes(m.province_id);
+      const matchesCommune =
+        !communeFilterOn || (m.commune != null && selectedCommunes.includes(m.commune));
+      const matchesMarket = !marketFilterOn || selectedMarkets.includes(m.id);
       const matchesProduct = !withProductsSet || withProductsSet.has(m.id);
       return matchesProvince && matchesCommune && matchesMarket && matchesProduct;
     });
-  }, [d, selectedProvinces, selectedCommunes, selectedMarkets, selectedProducts, latest.data]);
+  }, [
+    d,
+    provinceFilterOn,
+    communeFilterOn,
+    marketFilterOn,
+    productFilterOn,
+    selectedProvinces,
+    selectedCommunes,
+    selectedMarkets,
+    selectedProducts,
+    latest.data,
+  ]);
 
   // Filtrage des relevés de prix affichés dans les popups
   const rows = useMemo(() => {
     const raw = latest.data ?? [];
-    if (selectedProducts.length === 0) return raw;
+    if (!productFilterOn) return raw;
     return raw.filter((l) => selectedProducts.includes(l.product_id));
-  }, [latest.data, selectedProducts]);
+  }, [latest.data, selectedProducts, productFilterOn]);
 
   return (
     <Page>
@@ -169,13 +195,21 @@ function CartePage() {
       </div>
 
       {d ? (
-        <LazyMap
-          markets={markets}
-          provinces={d.provinces}
-          products={d.products}
-          latest={rows}
-          height={620}
-        />
+        <>
+          <p className="mb-2 text-xs text-muted-foreground">
+            {markets.length} marché{markets.length > 1 ? "s" : ""} sur la carte
+            {productFilterOn
+              ? " (filtrés par produit sélectionné)"
+              : " · tous les marchés géolocalisés"}
+          </p>
+          <LazyMap
+            markets={markets}
+            provinces={d.provinces}
+            products={d.products}
+            latest={rows}
+            height={620}
+          />
+        </>
       ) : (
         <div className="h-[620px] animate-pulse rounded-lg border bg-muted" />
       )}

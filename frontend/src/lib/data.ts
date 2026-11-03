@@ -39,9 +39,21 @@ export function useRef() {
     // Masque d’éventuels anciens enregistrements __SYSTEM_PHOTOS__
     const normalCategories = rawCategories.filter((cat) => !cat.name.startsWith("__SYSTEM_PHOTOS__"));
 
+    const markets = ((m.data ?? []) as Record<string, unknown>[]).map((row) => {
+      const lat = Number(row.lat ?? row.latitude);
+      const lng = Number(row.lng ?? row.longitude);
+      return {
+        ...(row as unknown as Market),
+        name: String(row.name ?? "").trim(),
+        lat: Number.isFinite(lat) ? lat : NaN,
+        lng: Number.isFinite(lng) ? lng : NaN,
+        active: row.active !== false,
+      } satisfies Market;
+    });
+
     return {
       provinces: p.data as Province[],
-      markets: m.data as Market[],
+      markets,
       categories: normalCategories,
       products: pr.data as Product[],
     };
@@ -130,9 +142,13 @@ export const distanceM = (
 };
 
 export const PROVINCE_COLORS: Record<string, string> = {
+  Bujumbura: "#16a34a",
   "Bujumbura Mairie": "#16a34a",
   Gitega: "#2563eb",
+  Butanyerera: "#ea580c",
   Ngozi: "#ea580c",
-  Rumonge: "#0891b2",
+  Buhumuza: "#9333ea",
   Kirundo: "#9333ea",
+  Burunga: "#0891b2",
+  Rumonge: "#0891b2",
 };
