@@ -31,7 +31,18 @@ npm run n8n:deploy
 
 ## Garder n8n éveillé (optionnel, gratuit)
 
-Render free endort le service : les schedules 18h peuvent rater si n8n dort.
-Ping gratuit (ex. [cron-job.org](https://cron-job.org)) toutes les 10–14 min :
+Render free endort le service après ~15 min sans trafic. **Ne pas** pinger toutes les 10 min (ça use le quota gratuit).
 
-- `https://n8n-ajs5.onrender.com/healthz`
+Sur [cron-job.org](https://cron-job.org) (compte gratuit) :
+
+1. **Job A — 1× par heure** (réveil léger, économe)
+   - URL : `https://n8n-ajs5.onrender.com/healthz`
+   - Intervalle : **Every hour** / cron `0 * * * *`
+   - Method : GET · Timeout : 30–60 s (cold start Render)
+
+2. **Job B — avant le rapport 18h** (important)
+   - URL : même `healthz`
+   - Schedule : **17:50** Africa/Bujumbura (`50 17 * * *` en TZ Bujumbura, ou `50 15 * * *` en UTC)
+   - Pour que n8n soit réveillé quand le schedule 18:00 envoie le mail
+
+Sans le job B, le rapport 18h peut rater si n8n dort entre deux pings horaires.
