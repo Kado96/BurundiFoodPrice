@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ArrowLeft, CalendarDays, MapPin, Search, Store, Filter, Sparkles, TrendingUp } from "lucide-react";
 import { useLatest, useRef, fbu, pct, fmtDate } from "@/lib/data";
 import { Avail, Delta, Page, Stat } from "@/components/bits";
 import { PRODUCT_IMAGES, getProductFallback, getMarketPhoto } from "@/lib/images";
 import { useI18n } from "@/lib/i18n";
+import { pullGalleryToLocal, subscribePhotoUpdates } from "@/lib/photoGallery";
 
 export const Route = createFileRoute("/marches/$id")({
   head: () => ({ meta: [
@@ -28,6 +29,12 @@ function MarchePage() {
   // Tous les Hooks d'état et mémoïsation TOUJOURS au sommet absolu
   const [searchProd, setSearchProd] = useState("");
   const [selectedCat, setSelectedCat] = useState("");
+  const [galleryTick, setGalleryTick] = useState(0);
+
+  useEffect(() => {
+    void pullGalleryToLocal().then(() => setGalleryTick((n) => n + 1));
+    return subscribePhotoUpdates(() => setGalleryTick((n) => n + 1));
+  }, []);
 
   const m = useMemo(() => d?.markets.find((x) => x.id === id), [d, id]);
   const prov = useMemo(() => d?.provinces.find((p) => p.id === m?.province_id)?.name, [d, m]);
@@ -58,6 +65,7 @@ function MarchePage() {
   if (!m) return <Page><p>Marché introuvable. <Link to="/marches" className="text-primary underline">Retour</Link></p></Page>;
 
   const last = rawRows.reduce((a, r) => (r.observed_at > a ? r.observed_at : a), "");
+  void galleryTick;
   const marketPhoto = getMarketPhoto(m.name);
 
   return (

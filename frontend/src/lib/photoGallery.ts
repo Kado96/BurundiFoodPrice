@@ -2,7 +2,7 @@
  * Galerie photos BFP — hub unique (admin Galerie + marchés/produits + carrousel).
  * Cloud : Storage `photos/catalogs/meta/gallery.json` (plus de hack categories.name).
  */
-import { MARKET_IMAGES, getMarketPhoto as getMarketPhotoFallback } from "@/lib/images";
+import { MARKET_IMAGES, getMarketPhoto as getMarketPhotoFallback, lookupMarketPhotoMap } from "@/lib/images";
 import { supabase } from "@/integrations/supabase/client";
 import { adminSaveGalleryMeta } from "@/lib/adminApi";
 
@@ -91,7 +91,7 @@ export function registerGalleryItem(item: Omit<GalleryItem, "id" | "createdAt"> 
 
 export function resolveMarketPhoto(marketName: string, gallery?: Record<string, string>): string {
   const store = gallery ?? (typeof window !== "undefined" ? loadPhotoStore(STORAGE_MARKET) : {});
-  const custom = store[marketName];
+  const custom = lookupMarketPhotoMap(store, marketName);
   if (custom) return custom;
   return MARKET_IMAGES[marketName] || getMarketPhotoFallback(marketName);
 }

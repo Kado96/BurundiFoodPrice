@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapPin, CalendarDays, Search, Store } from "lucide-react";
 import { useLatest, useRef, fmtDate, PROVINCE_COLORS } from "@/lib/data";
 import { Page } from "@/components/bits";
 import { MultiSelect } from "@/components/MultiSelect";
 import { useI18n } from "@/lib/i18n";
 import { getMarketPhoto } from "@/lib/images";
+import { pullGalleryToLocal, subscribePhotoUpdates } from "@/lib/photoGallery";
 
 export const Route = createFileRoute("/marches/")({
   head: () => ({ meta: [
@@ -26,7 +27,13 @@ function MarchesPage() {
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
   const [selectedCommunes, setSelectedCommunes] = useState<string[]>([]);
   const [q, setQ] = useState("");
+  const [galleryTick, setGalleryTick] = useState(0);
   const d = ref.data;
+
+  useEffect(() => {
+    void pullGalleryToLocal().then(() => setGalleryTick((n) => n + 1));
+    return subscribePhotoUpdates(() => setGalleryTick((n) => n + 1));
+  }, []);
   const provName = useMemo(() => Object.fromEntries((d?.provinces ?? []).map((p) => [p.id, p.name])), [d]);
 
   // Options pour MultiSelect Provinces
@@ -152,6 +159,7 @@ function MarchesPage() {
             {list.map((m) => {
               const st = stats[m.id];
               const rawDays = Array.isArray(m.market_days) ? m.market_days.join(", ") : String(m.market_days ?? "");
+              void galleryTick;
               const photo = getMarketPhoto(m.name);
 
               return (

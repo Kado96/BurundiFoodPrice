@@ -99,10 +99,59 @@ export const MARKET_SLIDES: MarketSlide[] = [
   },
 ];
 
+/** Cherche une URL dans une map marchés (exact → insensible casse → partial). */
+export function lookupMarketPhotoMap(
+  store: Record<string, string>,
+  marketName: string,
+): string | undefined {
+  if (!store || !marketName) return undefined;
+  const trimmed = marketName.trim();
+  const direct = store[trimmed] || store[marketName];
+  if (direct && (/^https?:\/\//i.test(direct) || direct.startsWith("data:"))) return direct;
+
+  const lower = trimmed.toLowerCase();
+  for (const [k, v] of Object.entries(store)) {
+    if (!v || !(/^https?:\/\//i.test(v) || v.startsWith("data:"))) continue;
+    if (k.trim().toLowerCase() === lower) return v;
+  }
+  // "Marché de Cotebu" ↔ "Cotebu" / clés galerie proches
+  let best: { url: string; score: number } | undefined;
+  for (const [k, v] of Object.entries(store)) {
+    if (!v || !(/^https?:\/\//i.test(v) || v.startsWith("data:"))) continue;
+    const kl = k.trim().toLowerCase();
+    if (!kl) continue;
+    if (lower.includes(kl) || kl.includes(lower)) {
+      const score = Math.min(kl.length, lower.length);
+      if (!best || score > best.score) best = { url: v, score };
+    }
+  }
+  return best?.url;
+}
+
+/**
+ * Image marché pour prod / web / Android :
+ * 1) photo galerie collectée (Storage / localStorage bfp_photo_market)
+ * 2) registre Unsplash MARKET_IMAGES
+ * 3) hash déterministe sur le registre
+ */
 export function getMarketPhoto(marketName: string): string {
   const trimmed = marketName.trim();
+  try {
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("bfp_photo_market");
+      if (raw) {
+        const map = JSON.parse(raw) as Record<string, string>;
+        const fromGallery = lookupMarketPhotoMap(map, trimmed);
+        if (fromGallery) return fromGallery;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
   if (MARKET_IMAGES[trimmed]) return MARKET_IMAGES[trimmed];
   if (MARKET_IMAGES[marketName]) return MARKET_IMAGES[marketName];
+  const fromDefaults = lookupMarketPhotoMap(MARKET_IMAGES, trimmed);
+  if (fromDefaults) return fromDefaults;
   const keys = Object.keys(MARKET_IMAGES);
   let hash = 0;
   for (let i = 0; i < trimmed.length; i++) hash = (hash + trimmed.charCodeAt(i)) % keys.length;

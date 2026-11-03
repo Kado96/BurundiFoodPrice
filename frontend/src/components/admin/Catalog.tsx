@@ -16,8 +16,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRef, type Market, type Product } from "@/lib/data";
 import {
   PRODUCT_IMAGES,
-  MARKET_IMAGES,
-  getMarketPhoto,
   getProductFallback,
 } from "@/lib/images";
 import { uploadCatalogPhoto } from "@/lib/photoUpload";
@@ -27,6 +25,7 @@ import {
   loadPhotoStore,
   savePhotoStore,
   registerGalleryItem,
+  resolveMarketPhoto,
   syncGalleryToCloud,
 } from "@/lib/photoGallery";
 import { GalleryPicker, GalleryPickButton } from "@/components/admin/GalleryPicker";
@@ -64,7 +63,7 @@ export function useMarketPhotos() {
     void syncPhotosToSupabaseCloud();
   }
   function getPhoto(name: string) {
-    return store[name] || MARKET_IMAGES[name] || getMarketPhoto(name);
+    return resolveMarketPhoto(name, store);
   }
   return { store, setPhoto, resetPhoto, getPhoto };
 }
