@@ -75,6 +75,8 @@ export function ProductPhotoGrid({ products, loading }: Props) {
                 src={imgUrl ?? fallback}
                 alt={p.name}
                 loading="lazy"
+                referrerPolicy="no-referrer"
+                decoding="async"
                 onError={(e) => { (e.target as HTMLImageElement).src = fallback; }}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />

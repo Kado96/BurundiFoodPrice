@@ -127,7 +127,10 @@ function MarchePage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <input
-                type="text"
+                id="market-product-search"
+                name="market_product_search"
+                type="search"
+                autoComplete="off"
                 value={searchProd}
                 onChange={(e) => setSearchProd(e.target.value)}
                 placeholder="Filtrer les produits de ce marché (ex: riz, haricot)..."

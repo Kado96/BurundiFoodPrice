@@ -22,7 +22,8 @@ export interface TelemetryEvent {
 }
 
 /**
- * Envoie un événement en arrière-plan sans bloquer l'interface ni lever d'exception en cas de déconnexion.
+ * Envoie un événement en arrière-plan sans bloquer l'interface ni lever d'exception.
+ * Évite sendBeacon : Chrome logge souvent CORB sur la réponse JSON du webhook.
  */
 export async function trackEvent(event: TelemetryEvent): Promise<void> {
   try {
@@ -33,16 +34,12 @@ export async function trackEvent(event: TelemetryEvent): Promise<void> {
       origin_url: typeof window !== "undefined" ? window.location.href : "",
     };
 
-    // text/plain + no-cors = pas de preflight CORS (évite le bruit console localhost)
     const body = JSON.stringify(payload);
-    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-      navigator.sendBeacon(N8N_WEBHOOK_URL, new Blob([body], { type: "text/plain" }));
-      return;
-    }
-    fetch(N8N_WEBHOOK_URL, {
+    // no-cors + text/plain : pas de preflight, réponse opaque (pas de bruit CORB lisible)
+    void fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body,
       keepalive: true,
     }).catch(() => {
@@ -57,7 +54,6 @@ export async function trackEvent(event: TelemetryEvent): Promise<void> {
  * Envoie les données d'une observation de prix synchronisée avec succès.
  */
 export function trackCollect(collectData: Record<string, unknown>): void {
-  // Doublé sous `collect` pour le workflow n8n + champs à la racine
   trackEvent({
     type: "collect",
     action: "price_collected",
@@ -82,7 +78,6 @@ export function trackPageView(path: string): void {
   lastPageViewTime = now;
   lastPageViewPath = path;
 
-  // Tentative de récupération de l'utilisateur actif
   let userEmail: string | undefined;
   try {
     const sessionStr = localStorage.getItem("sb-jvjxrknwbnsvgnobbfwa-auth-token");

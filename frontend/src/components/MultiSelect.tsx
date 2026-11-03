@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useId } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,8 @@ export interface MultiSelectProps {
   allLabel?: string;
   maxBadges?: number;
   className?: string;
+  /** Préfixe optionnel pour id/name uniques (accessibilité / autofill) */
+  idPrefix?: string;
 }
 
 export function MultiSelect({
@@ -27,7 +29,10 @@ export function MultiSelect({
   allLabel = "Tous",
   maxBadges = 2,
   className,
+  idPrefix,
 }: MultiSelectProps) {
+  const reactId = useId().replace(/:/g, "");
+  const searchFieldId = `${idPrefix || "multiselect"}-search-${reactId}`;
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [alignRight, setAlignRight] = useState(false);
@@ -216,7 +221,10 @@ export function MultiSelect({
               <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <input
                 ref={searchInputRef}
-                type="text"
+                id={searchFieldId}
+                name={searchFieldId}
+                type="search"
+                autoComplete="off"
                 placeholder="Rechercher..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
