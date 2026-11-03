@@ -93,15 +93,15 @@ function CartePage() {
   const markets = useMemo(() => {
     if (!d) return [];
 
-    // Filtre produit uniquement si un SOUS-ensemble de produits est choisi
-    let withProductsSet: Set<string> | null = null;
-    if (productFilterOn) {
-      withProductsSet = new Set(
-        (latest.data ?? [])
-          .filter((l) => selectedProducts.includes(l.product_id))
-          .map((l) => l.market_id),
-      );
-    }
+    const latestRows = latest.data ?? [];
+
+    // Marchés qui ont au moins un prix validé (tous produits, ou sous-ensemble choisi)
+    const pricedMarketIds = new Set(
+      (productFilterOn
+        ? latestRows.filter((l) => selectedProducts.includes(l.product_id))
+        : latestRows
+      ).map((l) => l.market_id),
+    );
 
     return d.markets.filter((m) => {
       if (m.active === false) return false;
@@ -115,8 +115,13 @@ function CartePage() {
       const matchesCommune =
         !communeFilterOn || (m.commune != null && selectedCommunes.includes(m.commune));
       const matchesMarket = !marketFilterOn || selectedMarkets.includes(m.id);
-      const matchesProduct = !withProductsSet || withProductsSet.has(m.id);
-      return matchesProvince && matchesCommune && matchesMarket && matchesProduct;
+
+      // Pas de prix validé → masqué (sauf sélection manuelle explicite du marché)
+      const explicitlyPicked = marketFilterOn && selectedMarkets.includes(m.id);
+      const hasPrices = pricedMarketIds.has(m.id);
+      if (!hasPrices && !explicitlyPicked) return false;
+
+      return matchesProvince && matchesCommune && matchesMarket;
     });
   }, [
     d,
@@ -197,10 +202,9 @@ function CartePage() {
       {d ? (
         <>
           <p className="mb-2 text-xs text-muted-foreground">
-            {markets.length} marché{markets.length > 1 ? "s" : ""} sur la carte
-            {productFilterOn
-              ? " (filtrés par produit sélectionné)"
-              : " · tous les marchés géolocalisés"}
+            {markets.length} marché{markets.length > 1 ? "s" : ""} avec prix validé
+            {productFilterOn ? " pour le(s) produit(s) choisi(s)" : ""}
+            {" · "}les marchés sans collecte validée sont masqués
           </p>
           <LazyMap
             markets={markets}
