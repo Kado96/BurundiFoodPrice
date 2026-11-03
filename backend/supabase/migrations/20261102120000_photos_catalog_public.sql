@@ -7,7 +7,7 @@ values (
   'photos',
   true,
   5242880,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']::text[]
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/json']::text[]
 )
 on conflict (id) do update
 set public = true,

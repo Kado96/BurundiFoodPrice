@@ -280,11 +280,15 @@ function CollectForm({ markets, onDone }: { markets: { id: string; name: string;
     if (dist != null && dist > 1000) flags.push("DISTANCE");
     if (!gps) flags.push("SANS_GPS");
     if (deviation != null && Math.abs(deviation) > 30) flags.push("PRIX_INHABITUEL");
+    const marketName = markets.find((m) => m.id === f.market_id)?.name;
+    const productName = ref.data?.products.find((p) => p.id === f.product_id)?.name;
     enqueue({
       client_id: crypto.randomUUID(), market_id: f.market_id, product_id: f.product_id, variety: f.variety, quality: f.quality,
       origin: f.origin, source: f.source, unit: f.unit, quantity: Number(f.quantity), price: Number(f.price), availability: f.availability,
       comment: f.comment, lat: gps?.lat ?? null, lng: gps?.lng ?? null, gps_accuracy: gps?.acc ?? null, distance_m: dist,
       flags, photo, observed_at: new Date().toISOString(), status: "EN_ATTENTE",
+      market_name: marketName,
+      product_name: productName,
     });
     toast.success("Observation enregistrée sur le téléphone");
     const keep = f.market_id;

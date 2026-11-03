@@ -1,9 +1,16 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Image as ImageIcon, Save, RefreshCw, Smartphone, Globe, Check, AlertCircle } from "lucide-react";
+import {
+  Sparkles,
+  Save,
+  RefreshCw,
+  Smartphone,
+  Globe,
+  AlertCircle,
+  Wheat,
+} from "lucide-react";
 import { useAppBranding, type AppBranding, DEFAULT_BRANDING } from "@/lib/branding";
-import { PhotoDropzone } from "@/components/admin/Catalog";
-import { Wheat } from "lucide-react";
+import { GalleryPicker, GalleryPickButton } from "@/components/admin/GalleryPicker";
 
 export function AppBrandingAdmin() {
   const { branding, setBranding, syncToCloud } = useAppBranding();
@@ -11,6 +18,7 @@ export function AppBrandingAdmin() {
   const [splashUrl, setSplashUrl] = useState<string>(branding.splashUrl || "");
   const [appName, setAppName] = useState<string>(branding.appName || "Burundi Food Price");
   const [saving, setSaving] = useState(false);
+  const [picker, setPicker] = useState<"logo" | "splash" | null>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -36,8 +44,8 @@ export function AppBrandingAdmin() {
     try {
       await syncToCloud(DEFAULT_BRANDING);
       setBranding(DEFAULT_BRANDING);
-      setLogoUrl("");
-      setSplashUrl("");
+      setLogoUrl(DEFAULT_BRANDING.logoUrl || "");
+      setSplashUrl(DEFAULT_BRANDING.splashUrl || "");
       setAppName(DEFAULT_BRANDING.appName || "Burundi Food Price");
       toast.success("Identité visuelle réinitialisée par défaut");
     } catch (err: any) {
@@ -49,7 +57,6 @@ export function AppBrandingAdmin() {
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
@@ -57,7 +64,7 @@ export function AppBrandingAdmin() {
             Identité Visuelle & Logo
           </h2>
           <p className="text-sm text-muted-foreground">
-            Personnalisez le logo de l'en-tête, le splash screen et l'identité mobile de Burundi Food Price.
+            Logo et splash via la galerie (bucket photos), comme marchés et produits.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -80,9 +87,7 @@ export function AppBrandingAdmin() {
         </div>
       </div>
 
-      {/* Cartes d'aperçu et d'édition */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* LOGO DE L'APPLICATION */}
         <div className="rounded-xl border bg-card p-5 space-y-4 shadow-xs">
           <div className="flex items-center justify-between border-b pb-3">
             <div className="flex items-center gap-2">
@@ -94,88 +99,51 @@ export function AppBrandingAdmin() {
             </span>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Apparaît dans la barre de navigation du site Web, les entêtes de l'espace agent, et comme icône de l'application mobile.
-          </p>
-
-          {/* Prévisualisation */}
           <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/20">
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="h-16 w-16 rounded-xl border bg-card grid place-items-center overflow-hidden shadow-xs">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Aperçu Logo" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-                    <Wheat className="h-6 w-6" />
-                  </div>
-                )}
-              </div>
-              <span className="text-[10px] text-muted-foreground font-mono">Aperçu</span>
+            <div className="h-16 w-16 rounded-xl border bg-card grid place-items-center overflow-hidden shadow-xs">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Aperçu Logo" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs">
+                  <Wheat className="h-6 w-6" />
+                </div>
+              )}
             </div>
-
-            <div className="flex-1 space-y-1">
-              <p className="text-sm font-semibold">Exemple dans le Header</p>
-              <div className="flex items-center gap-2 bg-background p-2 rounded-md border shadow-2xs">
+            <div className="flex-1 space-y-2">
+              <p className="text-sm font-semibold">Exemple Header</p>
+              <div className="flex items-center gap-2 bg-background p-2 rounded-md border">
                 {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="h-8 w-8 rounded-lg object-cover shadow-xs" />
+                  <img src={logoUrl} alt="Logo" className="h-8 w-8 rounded-lg object-cover" />
                 ) : (
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
                     <Wheat className="h-4 w-4" />
                   </span>
                 )}
                 <span className="text-sm font-bold">
-                  {appName.split(" ")[0]} <span className="text-primary">{appName.split(" ").slice(1).join(" ")}</span>
+                  {appName.split(" ")[0]}{" "}
+                  <span className="text-primary">{appName.split(" ").slice(1).join(" ")}</span>
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Saisie URL ou Dropzone */}
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-foreground/80 block mb-1">
-                Importer une image de logo
-              </label>
-              <PhotoDropzone
-                type="branding"
-                name="app_logo"
-                onUploaded={(url) => setLogoUrl(url)}
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground/80 block mb-1">
-                Ou URL directe de l'image
-              </label>
-              <input
-                type="url"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://.../logo.png"
-                className="h-9 w-full rounded-md border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-          </div>
+          <GalleryPickButton label="Choisir logo dans la galerie" onClick={() => setPicker("logo")} />
+          <p className="text-[11px] text-muted-foreground">
+            Pas d’URL libre : ajout / changement uniquement via la galerie.
+          </p>
         </div>
 
-        {/* SPLASH SCREEN */}
         <div className="rounded-xl border bg-card p-5 space-y-4 shadow-xs">
           <div className="flex items-center justify-between border-b pb-3">
             <div className="flex items-center gap-2">
               <Smartphone className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold text-base">Écran de Démarrage (Splash Screen)</h3>
+              <h3 className="font-semibold text-base">Écran de Démarrage (Splash)</h3>
             </div>
             <span className="text-xs bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-full">
               Portrait (ex. 1080x1920)
             </span>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Image affichée au lancement de l'application Android avant l'affichage complet de l'interface.
-          </p>
-
-          {/* Prévisualisation Mobile Frame */}
           <div className="flex items-center justify-center p-3 rounded-lg border bg-muted/20">
             <div className="relative w-32 h-48 rounded-2xl border-4 border-foreground/20 bg-background overflow-hidden shadow-md flex items-center justify-center">
               {splashUrl ? (
@@ -194,37 +162,10 @@ export function AppBrandingAdmin() {
             </div>
           </div>
 
-          {/* Saisie URL ou Dropzone */}
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-foreground/80 block mb-1">
-                Importer un Splash Screen
-              </label>
-              <PhotoDropzone
-                type="branding"
-                name="app_splash"
-                onUploaded={(url) => setSplashUrl(url)}
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground/80 block mb-1">
-                Ou URL directe de l'image
-              </label>
-              <input
-                type="url"
-                value={splashUrl}
-                onChange={(e) => setSplashUrl(e.target.value)}
-                placeholder="https://.../splash.png"
-                className="h-9 w-full rounded-md border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-          </div>
+          <GalleryPickButton label="Choisir splash dans la galerie" onClick={() => setPicker("splash")} />
         </div>
       </div>
 
-      {/* PARAMÈTRES GÉNÉRAUX */}
       <div className="rounded-xl border bg-card p-5 space-y-4 shadow-xs">
         <h3 className="font-semibold text-base">Nom de la Plateforme</h3>
         <div className="max-w-md space-y-2">
@@ -235,26 +176,40 @@ export function AppBrandingAdmin() {
             placeholder="Burundi Food Price"
             className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-primary"
           />
-          <p className="text-xs text-muted-foreground">
-            Nom affiché dans le titre du site Web et en en-tête.
-          </p>
         </div>
       </div>
 
-      {/* Note d'information Capacitor & Synchronisation */}
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs text-muted-foreground space-y-2">
         <div className="flex items-center gap-2 font-semibold text-foreground text-sm">
           <AlertCircle className="h-4 w-4 text-primary" />
           Synchronisation Web et Application Mobile
         </div>
         <p>
-          • <strong>Web & PWA :</strong> Les modifications de logo prennent effet immédiatement sur tous les navigateurs dès l'enregistrement.
+          • <strong>Web & PWA :</strong> logo / splash via galerie, effet immédiat après enregistrement.
         </p>
         <p>
-          • <strong>Application Mobile Android :</strong> Les fichiers ressources mobiles se trouvent dans <code>frontend/resources/icon.png</code> et <code>frontend/resources/splash.png</code>. La recompilation Capacitor génère l'APK autonome mis à jour pour le terrain.
+          • <strong>Android :</strong> ressources Capacitor dans{" "}
+          <code>frontend/resources/icon.png</code> et <code>splash.png</code>.
         </p>
       </div>
+
+      <GalleryPicker
+        open={picker !== null}
+        title={picker === "splash" ? "Splash screen" : "Logo principal"}
+        kind="branding"
+        entityName={picker === "splash" ? "app_splash" : "app_logo"}
+        currentUrl={picker === "splash" ? splashUrl : logoUrl}
+        onClose={() => setPicker(null)}
+        onSelect={(url) => {
+          if (picker === "splash") setSplashUrl(url);
+          else setLogoUrl(url);
+          toast.success("Image sélectionnée depuis la galerie");
+        }}
+        onClear={() => {
+          if (picker === "splash") setSplashUrl("");
+          else setLogoUrl("");
+        }}
+      />
     </div>
   );
 }
-export default AppBrandingAdmin;

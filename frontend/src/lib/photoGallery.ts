@@ -205,11 +205,10 @@ function applyGalleryLocal(payload: GalleryPayload) {
 
 export async function fetchGalleryFromCloud(): Promise<GalleryPayload | null> {
   try {
-    const { data } = supabase.storage.from("photos").getPublicUrl(GALLERY_OBJECT_PATH);
-    const url = `${data.publicUrl}?t=${Date.now()}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    const json = (await res.json()) as GalleryPayload;
+    // download() évite le GET public 400 bruyant si gallery.json n'existe pas encore
+    const { data, error } = await supabase.storage.from("photos").download(GALLERY_OBJECT_PATH);
+    if (error || !data) return null;
+    const json = JSON.parse(await data.text()) as GalleryPayload;
     if (!json || typeof json !== "object") return null;
     return {
       items: Array.isArray(json.items) ? json.items : [],
@@ -218,8 +217,7 @@ export async function fetchGalleryFromCloud(): Promise<GalleryPayload | null> {
       appBranding: json.appBranding,
       updatedAt: json.updatedAt,
     };
-  } catch (err) {
-    console.warn("[gallery] fetch cloud failed:", err);
+  } catch {
     return null;
   }
 }
@@ -237,16 +235,7 @@ export async function syncGalleryToCloud(extra?: {
   const payload = buildGalleryPayload(extra);
   const body = JSON.stringify(payload);
 
-  try {
-    const res = await adminSaveGalleryMeta(payload as unknown as Record<string, unknown>);
-    if (res?.ok) {
-      await cleanupLegacyCategoryHack();
-      return { ok: true, source: "api" };
-    }
-  } catch (err) {
-    console.warn("[gallery] API meta failed, try storage:", err);
-  }
-
+  // 1. Upload direct Storage d'abord (fonctionne sans backend local :4000)
   try {
     const blob = new Blob([body], { type: "application/json" });
     const { error } = await supabase.storage.from("photos").upload(GALLERY_OBJECT_PATH, blob, {
@@ -257,7 +246,18 @@ export async function syncGalleryToCloud(extra?: {
     await cleanupLegacyCategoryHack();
     return { ok: true, source: "storage" };
   } catch (err) {
-    console.warn("[gallery] storage meta failed:", err);
+    console.warn("[gallery] storage meta failed, try API:", err);
+  }
+
+  // 2. Fallback API admin (service role, utile si mime JSON bloqué côté client)
+  try {
+    const res = await adminSaveGalleryMeta(payload as unknown as Record<string, unknown>);
+    if (res?.ok) {
+      await cleanupLegacyCategoryHack();
+      return { ok: true, source: "api" };
+    }
+  } catch (err) {
+    console.warn("[gallery] API meta failed:", err);
   }
 
   return { ok: false };

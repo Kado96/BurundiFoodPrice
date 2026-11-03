@@ -29,6 +29,7 @@ import {
   registerGalleryItem,
   syncGalleryToCloud,
 } from "@/lib/photoGallery";
+import { GalleryPicker, GalleryPickButton } from "@/components/admin/GalleryPicker";
 
 const input = "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
@@ -303,14 +304,19 @@ export function Markets() {
   const { getPhoto, setPhoto, resetPhoto } = useMarketPhotos();
   const [edit, setEdit] = useState<Partial<Market> | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
-  const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [modalUrl, setModalUrl] = useState("");
+  const [galleryFor, setGalleryFor] = useState<string | null>(null);
+  const [galleryMode, setGalleryMode] = useState<"edit" | "modal">("modal");
   const d = ref.data;
   const prov = Object.fromEntries((d?.provinces ?? []).map((p) => [p.id, p.name]));
 
   function openEdit(m: Partial<Market>) {
     setEdit(m);
     setPhotoUrl(m.name ? getPhoto(m.name) : "");
+  }
+
+  function openGallery(name: string, mode: "edit" | "modal" = "modal") {
+    setGalleryMode(mode);
+    setGalleryFor(name);
   }
 
   async function save(e: React.FormEvent) {
@@ -413,51 +419,22 @@ export function Markets() {
               <input className={`mt-1 ${input}`} value={edit.market_days ?? ""} onChange={(e) => setEdit({ ...edit, market_days: e.target.value })} placeholder="Lundi, Jeudi" />
             </label>
 
-            {/* ─── Champ URL Photo & Upload de fichier ─── */}
+            {/* Photo → uniquement via galerie */}
             <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-medium block">
-                <span className="flex items-center justify-between gap-1.5 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <Image className="h-3.5 w-3.5 text-primary" />
-                    Photo du marché
-                  </span>
-                  <PhotoDropzone
-                    type="market"
-                    name={edit.name ?? ""}
-                    onUploaded={(url) => setPhotoUrl(url)}
-                    buttonOnly
-                  />
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <Image className="h-3.5 w-3.5 text-primary" />
+                  Photo du marché
                 </span>
-                <input
-                  className={`mt-1 ${input} font-mono text-xs`}
-                  value={photoUrl.startsWith("data:") ? "(Photo locale importée prête à enregistrer)" : photoUrl}
-                  onChange={(e) => setPhotoUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-... ou importer un fichier"
+                <GalleryPickButton
+                  label="Changer via la galerie"
+                  onClick={() => openGallery(edit.name || "nouveau-marche", "edit")}
                 />
-              </label>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {MARKET_IMAGES[edit.name ?? ""] && (
-                  <button type="button" onClick={() => setPhotoUrl(MARKET_IMAGES[edit.name!])}
-                    className="text-xs text-primary underline"
-                  >
-                    Utiliser la photo par défaut
-                  </button>
-                )}
-                {photoUrl && (
-                  <button type="button" onClick={() => setPhotoUrl("")}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    <RefreshCcw className="h-3 w-3" /> Réinitialiser
-                  </button>
-                )}
               </div>
-            </div>
-
-            {/* Prévisualisation */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Prévisualisation</span>
               <PhotoPreview url={photoUrl || getPhoto(edit.name ?? "")} alt={edit.name ?? ""} className="h-28" />
+              <p className="text-[11px] text-muted-foreground">
+                Ajout / modification uniquement depuis la galerie (bucket photos).
+              </p>
             </div>
 
             <label className="flex items-center gap-2 text-sm font-medium md:col-span-3">
@@ -473,99 +450,37 @@ export function Markets() {
         </form>
       )}
 
-      {/* ─── Modal dédiée : Modifier / Supprimer la photo du marché ─── */}
-      {photoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                <Image className="h-5 w-5 text-primary" />
-                Photo du marché : {photoModal}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPhotoModal(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <PhotoPreview
-                url={modalUrl || getPhoto(photoModal)}
-                alt={photoModal}
-                className="h-44 w-full"
-              />
-
-              {/* Option 1 : Upload direct depuis l'ordinateur/téléphone */}
-              <PhotoDropzone
-                type="market"
-                name={photoModal}
-                onUploaded={(url) => setModalUrl(url)}
-              />
-
-              {/* Option 2 : Lien URL */}
-              <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1">
-                  Ou renseigner une URL (Unsplash, HTTPS...)
-                </label>
-                <input
-                  className={`${input} font-mono text-xs`}
-                  value={modalUrl.startsWith("data:") ? "(Photo locale importée prête)" : modalUrl}
-                  onChange={(e) => setModalUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                {MARKET_IMAGES[photoModal] && (
-                  <button
-                    type="button"
-                    onClick={() => setModalUrl(MARKET_IMAGES[photoModal])}
-                    className="rounded-lg border px-2.5 py-1.5 font-medium hover:bg-muted"
-                  >
-                    Restaurer l'image officielle
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setModalUrl(getProductFallback(photoModal))}
-                  className="rounded-lg border border-red-200 text-red-600 px-2.5 py-1.5 font-medium hover:bg-red-50 dark:hover:bg-red-950/20"
-                >
-                  Supprimer la photo
-                </button>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <button
-                  type="button"
-                  onClick={() => setPhotoModal(null)}
-                  className="h-9 rounded-xl border px-4 text-xs font-medium hover:bg-muted"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (modalUrl.trim()) {
-                      setPhoto(photoModal, modalUrl.trim());
-                      toast.success(`Photo de ${photoModal} mise à jour et synchronisée`);
-                    } else {
-                      resetPhoto(photoModal);
-                      toast.info(`Photo de ${photoModal} réinitialisée`);
-                    }
-                    setPhotoModal(null);
-                  }}
-                  className="h-9 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground hover:opacity-90 shadow-xs"
-                >
-                  Enregistrer la photo
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <GalleryPicker
+        open={!!galleryFor}
+        title={galleryFor ? `Photo du marché : ${galleryFor}` : "Galerie"}
+        kind="market"
+        entityName={galleryFor || undefined}
+        currentUrl={
+          galleryFor
+            ? galleryMode === "edit"
+              ? photoUrl || getPhoto(galleryFor)
+              : getPhoto(galleryFor)
+            : undefined
+        }
+        onClose={() => setGalleryFor(null)}
+        onSelect={(url) => {
+          if (!galleryFor) return;
+          if (galleryMode === "edit") {
+            setPhotoUrl(url);
+          } else {
+            setPhoto(galleryFor, url);
+            toast.success(`Photo de ${galleryFor} mise à jour via la galerie`);
+          }
+        }}
+        onClear={() => {
+          if (!galleryFor) return;
+          if (galleryMode === "edit") setPhotoUrl("");
+          else {
+            resetPhoto(galleryFor);
+            toast.info(`Photo de ${galleryFor} réinitialisée`);
+          }
+        }}
+      />
 
       {/* ─── Tableau des marchés avec photos ─── */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -587,7 +502,7 @@ export function Markets() {
               <tr key={m.id} className="border-t hover:bg-muted/20 transition-colors">
                 <td className="p-2">
                   <div
-                    onClick={() => { setPhotoModal(m.name); setModalUrl(getPhoto(m.name)); }}
+                    onClick={() => openGallery(m.name, "modal")}
                     className="group relative cursor-pointer overflow-hidden rounded-lg"
                     title="Cliquer pour changer ou supprimer la photo"
                   >
@@ -606,7 +521,7 @@ export function Markets() {
                 <td className="p-3 text-right">
                   <div className="inline-flex items-center gap-1.5">
                     <button
-                      onClick={() => { setPhotoModal(m.name); setModalUrl(getPhoto(m.name)); }}
+                      onClick={() => openGallery(m.name, "modal")}
                       className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors text-primary"
                       title="Changer, supprimer ou réinitialiser la photo"
                     >
@@ -647,8 +562,8 @@ export function Products() {
   const { getPhoto, setPhoto, resetPhoto } = useProductPhotos();
   const [edit, setEdit] = useState<Partial<Product> | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
-  const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [modalUrl, setModalUrl] = useState("");
+  const [galleryFor, setGalleryFor] = useState<string | null>(null);
+  const [galleryMode, setGalleryMode] = useState<"edit" | "modal">("modal");
   const [cat, setCat] = useState("");
   const d = ref.data;
   const cats = Object.fromEntries((d?.categories ?? []).map((c) => [c.id, c.name]));
@@ -656,6 +571,11 @@ export function Products() {
   function openEdit(p: Partial<Product>) {
     setEdit(p);
     setPhotoUrl(p.name ? getPhoto(p.name) : "");
+  }
+
+  function openGallery(name: string, mode: "edit" | "modal" = "modal") {
+    setGalleryMode(mode);
+    setGalleryFor(name);
   }
 
   async function save(e: React.FormEvent) {
@@ -768,55 +688,26 @@ export function Products() {
               Produit actif
             </label>
 
-            {/* ─── Champ URL Photo & Upload de fichier ─── */}
+            {/* Photo → uniquement via galerie */}
             <div className="md:col-span-3 space-y-2">
-              <label className="text-sm font-medium block">
-                <span className="flex items-center justify-between gap-1.5 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <Image className="h-3.5 w-3.5 text-primary" />
-                    Photo du produit
-                  </span>
-                  <PhotoDropzone
-                    type="product"
-                    name={edit.name ?? ""}
-                    onUploaded={(url) => setPhotoUrl(url)}
-                    buttonOnly
-                  />
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <Image className="h-3.5 w-3.5 text-primary" />
+                  Photo du produit
                 </span>
-                <input
-                  className={`mt-1 ${input} font-mono text-xs`}
-                  value={photoUrl.startsWith("data:") ? "(Photo locale importée prête à enregistrer)" : photoUrl}
-                  onChange={(e) => setPhotoUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-... ou importer un fichier"
+                <GalleryPickButton
+                  label="Changer via la galerie"
+                  onClick={() => openGallery(edit.name || "nouveau-produit", "edit")}
                 />
-              </label>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {PRODUCT_IMAGES[edit.name ?? ""] && (
-                  <button type="button" onClick={() => setPhotoUrl(PRODUCT_IMAGES[edit.name!])}
-                    className="text-xs text-primary underline"
-                  >
-                    Photo par défaut
-                  </button>
-                )}
-                {photoUrl && (
-                  <button type="button" onClick={() => setPhotoUrl("")}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    <RefreshCcw className="h-3 w-3" /> Réinitialiser
-                  </button>
-                )}
               </div>
-            </div>
-
-            {/* Prévisualisation */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Prévisualisation</span>
               <PhotoPreview
                 url={photoUrl || getPhoto(edit.name ?? "")}
                 alt={edit.name ?? ""}
                 className="h-28"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Ajout / modification uniquement depuis la galerie (bucket photos).
+              </p>
             </div>
           </div>
 
@@ -827,99 +718,37 @@ export function Products() {
         </form>
       )}
 
-      {/* ─── Modal dédiée : Modifier / Supprimer la photo du produit ─── */}
-      {photoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                <Image className="h-5 w-5 text-primary" />
-                Photo du produit : {photoModal}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPhotoModal(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <PhotoPreview
-                url={modalUrl || getPhoto(photoModal)}
-                alt={photoModal}
-                className="h-44 w-full"
-              />
-
-              {/* Option 1 : Upload direct depuis l'ordinateur/téléphone */}
-              <PhotoDropzone
-                type="product"
-                name={photoModal}
-                onUploaded={(url) => setModalUrl(url)}
-              />
-
-              {/* Option 2 : Lien URL */}
-              <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1">
-                  Ou renseigner une URL (Unsplash, HTTPS...)
-                </label>
-                <input
-                  className={`${input} font-mono text-xs`}
-                  value={modalUrl.startsWith("data:") ? "(Photo locale importée prête)" : modalUrl}
-                  onChange={(e) => setModalUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                {PRODUCT_IMAGES[photoModal] && (
-                  <button
-                    type="button"
-                    onClick={() => setModalUrl(PRODUCT_IMAGES[photoModal])}
-                    className="rounded-lg border px-2.5 py-1.5 font-medium hover:bg-muted"
-                  >
-                    Restaurer l'image officielle
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setModalUrl(getProductFallback(photoModal))}
-                  className="rounded-lg border border-red-200 text-red-600 px-2.5 py-1.5 font-medium hover:bg-red-50 dark:hover:bg-red-950/20"
-                >
-                  Supprimer la photo
-                </button>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <button
-                  type="button"
-                  onClick={() => setPhotoModal(null)}
-                  className="h-9 rounded-xl border px-4 text-xs font-medium hover:bg-muted"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (modalUrl.trim()) {
-                      setPhoto(photoModal, modalUrl.trim());
-                      toast.success(`Photo de ${photoModal} mise à jour et synchronisée`);
-                    } else {
-                      resetPhoto(photoModal);
-                      toast.info(`Photo de ${photoModal} réinitialisée`);
-                    }
-                    setPhotoModal(null);
-                  }}
-                  className="h-9 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground hover:opacity-90 shadow-xs"
-                >
-                  Enregistrer la photo
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <GalleryPicker
+        open={!!galleryFor}
+        title={galleryFor ? `Photo du produit : ${galleryFor}` : "Galerie"}
+        kind="product"
+        entityName={galleryFor || undefined}
+        currentUrl={
+          galleryFor
+            ? galleryMode === "edit"
+              ? photoUrl || getPhoto(galleryFor)
+              : getPhoto(galleryFor)
+            : undefined
+        }
+        onClose={() => setGalleryFor(null)}
+        onSelect={(url) => {
+          if (!galleryFor) return;
+          if (galleryMode === "edit") {
+            setPhotoUrl(url);
+          } else {
+            setPhoto(galleryFor, url);
+            toast.success(`Photo de ${galleryFor} mise à jour via la galerie`);
+          }
+        }}
+        onClear={() => {
+          if (!galleryFor) return;
+          if (galleryMode === "edit") setPhotoUrl("");
+          else {
+            resetPhoto(galleryFor);
+            toast.info(`Photo de ${galleryFor} réinitialisée`);
+          }
+        }}
+      />
 
       {/* ─── Tableau des produits avec photos ─── */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -939,9 +768,9 @@ export function Products() {
               <tr key={p.id} className="border-t hover:bg-muted/20 transition-colors">
                 <td className="p-2">
                   <div
-                    onClick={() => { setPhotoModal(p.name); setModalUrl(getPhoto(p.name)); }}
+                    onClick={() => openGallery(p.name, "modal")}
                     className="group relative cursor-pointer overflow-hidden rounded-lg"
-                    title="Cliquer pour changer ou supprimer la photo"
+                    title="Changer la photo via la galerie"
                   >
                     <PhotoPreview url={getPhoto(p.name)} alt={p.name} className="h-12 w-16 rounded-lg transition-transform group-hover:scale-105" />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -956,9 +785,9 @@ export function Products() {
                 <td className="p-3 text-right">
                   <div className="inline-flex items-center gap-1.5">
                     <button
-                      onClick={() => { setPhotoModal(p.name); setModalUrl(getPhoto(p.name)); }}
+                      onClick={() => openGallery(p.name, "modal")}
                       className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors text-primary"
-                      title="Changer, supprimer ou réinitialiser la photo"
+                      title="Changer via la galerie"
                     >
                       <Image className="h-3.5 w-3.5" /> Photo
                     </button>

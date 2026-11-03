@@ -5,12 +5,19 @@ function isNewKey(value) {
 }
 
 function makeFetch(key) {
+  const anonJwt = process.env.SUPABASE_ANON_KEY;
   return (input, init) => {
     const headers = new Headers(init?.headers);
-    if (isNewKey(key) && headers.get("Authorization") === `Bearer ${key}`) {
-      headers.delete("Authorization");
-    }
     headers.set("apikey", key);
+    // Storage OpenAPI exige un Bearer JWT. sb_secret_ n'est pas un JWT →
+    // on met l'anon JWT en Authorization et le secret en apikey (privilèges).
+    if (isNewKey(key)) {
+      const auth = headers.get("Authorization");
+      if (!auth || auth === `Bearer ${key}`) {
+        if (anonJwt) headers.set("Authorization", `Bearer ${anonJwt}`);
+        else headers.delete("Authorization");
+      }
+    }
     return fetch(input, { ...init, headers });
   };
 }

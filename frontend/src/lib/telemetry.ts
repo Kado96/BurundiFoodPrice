@@ -57,9 +57,15 @@ export async function trackEvent(event: TelemetryEvent): Promise<void> {
  * Envoie les données d'une observation de prix synchronisée avec succès.
  */
 export function trackCollect(collectData: Record<string, unknown>): void {
+  // Doublé sous `collect` pour le workflow n8n + champs à la racine
   trackEvent({
     type: "collect",
     action: "price_collected",
+    collect: collectData,
+    market_name: collectData.market_name,
+    product_name: collectData.product_name,
+    agent_name: collectData.agent_name,
+    agent_email: collectData.agent_email,
     ...collectData,
   });
 }

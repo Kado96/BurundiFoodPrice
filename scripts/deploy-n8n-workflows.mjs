@@ -131,8 +131,22 @@ async function upsertAndActivate(filePath) {
   let payload = sanitizeWorkflow(raw);
   payload = applyGmailRelay(payload);
 
-  const list = await api("GET", "/api/v1/workflows?limit=100");
-  const items = list.data || list || [];
+  // n8n public API: /api/v1/... (certaines instances exposent aussi /rest/...)
+  async function listWorkflows() {
+    const paths = ["/api/v1/workflows?limit=250", "/rest/workflows?limit=250"];
+    let lastErr;
+    for (const p of paths) {
+      try {
+        const list = await api("GET", p);
+        return list.data || list || [];
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  }
+
+  const items = await listWorkflows();
   const existing = items.find((w) => w.name === payload.name);
 
   let id;
@@ -147,7 +161,11 @@ async function upsertAndActivate(filePath) {
   }
 
   console.log(`[n8n] activate ${id}`);
-  await api("POST", `/api/v1/workflows/${id}/activate`, {});
+  try {
+    await api("POST", `/api/v1/workflows/${id}/activate`, {});
+  } catch {
+    await api("PATCH", `/api/v1/workflows/${id}`, { active: true });
+  }
   return { id, name: payload.name };
 }
 

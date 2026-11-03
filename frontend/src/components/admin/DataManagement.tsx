@@ -252,6 +252,9 @@ export function DataManagement() {
       const { error } = await supabase
         .from("observations")
         .update({
+          product_id: editingItem.product_id,
+          market_id: editingItem.market_id,
+          unit: editingItem.unit,
           price: Number(editingItem.price),
           quantity: Number(editingItem.quantity),
           variety: editingItem.variety || null,
@@ -613,6 +616,65 @@ export function DataManagement() {
             </div>
 
             <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label htmlFor="edit-obs-product" className="mb-1 flex items-center gap-1.5 text-xs font-medium">
+                    <Package className="h-3.5 w-3.5 text-primary" />
+                    Produit *
+                  </label>
+                  <select
+                    id="edit-obs-product"
+                    name="product_id"
+                    required
+                    value={editingItem.product_id}
+                    onChange={(e) => {
+                      const productId = e.target.value;
+                      const product = (d?.products ?? []).find((p) => p.id === productId);
+                      setEditingItem({
+                        ...editingItem,
+                        product_id: productId,
+                        unit: product?.default_unit || editingItem.unit,
+                      });
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-2 text-sm font-medium"
+                  >
+                    {(d?.products ?? [])
+                      .filter((p) => p.active !== false || p.id === editingItem.product_id)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                          {p.active === false ? " (inactif)" : ""}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Change le produit associé à ce relevé (ex. Riz local → Maïs grain).
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="edit-obs-market" className="mb-1 flex items-center gap-1.5 text-xs font-medium">
+                    <Store className="h-3.5 w-3.5 text-primary" />
+                    Marché *
+                  </label>
+                  <select
+                    id="edit-obs-market"
+                    name="market_id"
+                    required
+                    value={editingItem.market_id}
+                    onChange={(e) => setEditingItem({ ...editingItem, market_id: e.target.value })}
+                    className="h-10 w-full rounded-md border bg-background px-2 text-sm"
+                  >
+                    {(d?.markets ?? [])
+                      .filter((m) => m.active !== false || m.id === editingItem.market_id)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="edit-obs-price" className="mb-1 block text-xs font-medium">

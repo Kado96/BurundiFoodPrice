@@ -8,6 +8,9 @@ export type LocalObs = {
   lat: number | null; lng: number | null; gps_accuracy: number | null; distance_m: number | null;
   flags: string[]; photo: string | null; observed_at: string;
   status: "EN_ATTENTE" | "ERREUR"; error?: string;
+  /** Noms lisibles pour emails / n8n (évite les UUID dans les alertes) */
+  market_name?: string;
+  product_name?: string;
 };
 
 const KEY = "bfp-queue";
@@ -42,14 +45,57 @@ export async function syncQueue(onProgress?: (done: number, total: number) => vo
         if (up.error) throw up.error;
         photo_url = path;
       }
-      const { photo: _p, status: _s, error: _e, ...rest } = o;
+      const {
+        photo: _p,
+        status: _s,
+        error: _e,
+        market_name: _mn,
+        product_name: _pn,
+        ...rest
+      } = o;
       const { error } = await supabase.from("observations").insert({
         ...rest, variety: o.variety || null, quality: o.quality || null, origin: o.origin || null,
         source: o.source || null, comment: o.comment || null, photo_url, agent_id: uid, status: "SYNCHRONISEE",
       });
       if (error && !error.message.includes("duplicate")) throw error;
       removeFromQueue(o.client_id); ok++;
-      trackCollect({ ...o, agent_id: uid, photo_url });
+
+      // Enrichit l’alerte n8n avec des noms (pas des UUID)
+      let market_name = o.market_name;
+      let product_name = o.product_name;
+      let agent_email = u.user?.email || undefined;
+      let agent_name: string | undefined;
+      try {
+        if (!market_name) {
+          const { data: mk } = await supabase.from("markets").select("name").eq("id", o.market_id).maybeSingle();
+          market_name = mk?.name;
+        }
+        if (!product_name) {
+          const { data: pr } = await supabase.from("products").select("name").eq("id", o.product_id).maybeSingle();
+          product_name = pr?.name;
+        }
+        if (uid) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", uid)
+            .maybeSingle();
+          agent_name = profile?.full_name || undefined;
+          agent_email = profile?.email || agent_email;
+        }
+      } catch {
+        /* noms optionnels */
+      }
+
+      trackCollect({
+        ...o,
+        agent_id: uid,
+        photo_url,
+        market_name: market_name || o.market_id,
+        product_name: product_name || o.product_id,
+        agent_name: agent_name || agent_email || "Agent de terrain",
+        agent_email: agent_email || agent_name || uid,
+      });
     } catch (e) {
       setQueue(getQueue().map((x) => x.client_id === o.client_id ? { ...x, status: "ERREUR", error: (e as Error).message } : x));
     }
