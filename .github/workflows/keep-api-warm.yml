@@ -1,41 +1,17 @@
-# Empêche le sleep Render (plan free) qui provoque des 502 sur /api/admin/*
-name: Keep Burundi Food Price API warm
+# DÉSACTIVÉ — GitHub Actions n’est plus utilisé (gratuit).
+# Pour garder l’API / n8n éveillés sans payer GitHub, utilise un cron gratuit
+# externe (ex. https://cron-job.org) qui ping :
+#   https://n8n-ajs5.onrender.com/healthz
+#   https://<ton-api-render>/health
+name: Keep API warm
 
 on:
-  schedule:
-    # Toutes les 10 min (UTC) — sous le seuil de sleep Render (~15 min)
-    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
   ping:
+    if: false
     runs-on: ubuntu-latest
-    timeout-minutes: 2
     steps:
-      - name: Ping API + n8n
-        run: |
-          set -e
-          URL="${{ vars.BFP_API_HEALTH_URL }}"
-          if [ -z "$URL" ]; then
-            URL="https://burundi-food-price-api.onrender.com/health"
-          fi
-          N8N_URL="${{ vars.N8N_HEALTH_URL }}"
-          if [ -z "$N8N_URL" ]; then
-            N8N_URL="https://n8n-ajs5.onrender.com/healthz"
-          fi
-          ping() {
-            local name="$1" target="$2"
-            echo "GET $target ($name)"
-            for i in 1 2 3; do
-              code=$(curl -sS -o /tmp/ping.json -w "%{http_code}" --max-time 60 "$target" || true)
-              echo "  attempt=$i http=$code"
-              if [ "$code" = "200" ] || [ "$code" = "204" ]; then
-                return 0
-              fi
-              sleep 12
-            done
-            echo "$name unreachable"
-            return 1
-          }
-          ping "bfp-api" "$URL"
-          ping "n8n" "$N8N_URL"
+      - name: noop
+        run: echo "disabled"

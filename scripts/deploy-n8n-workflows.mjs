@@ -105,7 +105,12 @@ function applyGmailRelay(wf) {
   const url = (process.env.BFP_GMAIL_RELAY_URL || "").trim();
   const secret = (process.env.BFP_GMAIL_RELAY_SECRET || "bfp-gmail-relay-2026").trim();
   if (!url) return wf;
-  const mailNodes = new Set(["Send Instant Alert Email", "Send 4h Report Email"]);
+  const mailNodes = new Set([
+    "Send Instant Alert Email",
+    "Send 4h Report Email",
+    "Send Periodic Report Email",
+    "Send Report Email",
+  ]);
   wf.nodes = (wf.nodes || []).map((n) => {
     if (!mailNodes.has(n.name)) return n;
     return {
@@ -131,40 +136,44 @@ async function upsertAndActivate(filePath) {
   let payload = sanitizeWorkflow(raw);
   payload = applyGmailRelay(payload);
 
-  // n8n public API: /api/v1/... (certaines instances exposent aussi /rest/...)
-  async function listWorkflows() {
-    const paths = ["/api/v1/workflows?limit=250", "/rest/workflows?limit=250"];
+  // Public API only (/api/v1). Retry during Render cold start (404 HTML / 503).
+  async function apiRetry(method, urlPath, body, attempts = 8) {
     let lastErr;
-    for (const p of paths) {
+    for (let i = 1; i <= attempts; i++) {
       try {
-        const list = await api("GET", p);
-        return list.data || list || [];
+        return await api(method, urlPath, body);
       } catch (err) {
         lastErr = err;
+        const msg = String(err?.message || err);
+        const retryable = /→ (404|502|503|504)/.test(msg) || /Cannot GET/.test(msg);
+        if (!retryable || i === attempts) break;
+        console.warn(`[n8n] ${method} ${urlPath} retry ${i}/${attempts}: ${msg.slice(0, 80)}`);
+        await new Promise((r) => setTimeout(r, 4000));
       }
     }
     throw lastErr;
   }
 
-  const items = await listWorkflows();
+  const list = await apiRetry("GET", "/api/v1/workflows?limit=250");
+  const items = list.data || list || [];
   const existing = items.find((w) => w.name === payload.name);
 
   let id;
   if (existing) {
     console.log(`[n8n] update "${payload.name}" (${existing.id})`);
-    const updated = await api("PUT", `/api/v1/workflows/${existing.id}`, payload);
+    const updated = await apiRetry("PUT", `/api/v1/workflows/${existing.id}`, payload);
     id = updated.id || existing.id;
   } else {
     console.log(`[n8n] create "${payload.name}"`);
-    const created = await api("POST", "/api/v1/workflows", payload);
+    const created = await apiRetry("POST", "/api/v1/workflows", payload);
     id = created.id;
   }
 
   console.log(`[n8n] activate ${id}`);
   try {
-    await api("POST", `/api/v1/workflows/${id}/activate`, {});
+    await apiRetry("POST", `/api/v1/workflows/${id}/activate`, {});
   } catch {
-    await api("PATCH", `/api/v1/workflows/${id}`, { active: true });
+    await apiRetry("PATCH", `/api/v1/workflows/${id}`, { active: true });
   }
   return { id, name: payload.name };
 }
