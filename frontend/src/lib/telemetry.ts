@@ -1,6 +1,7 @@
 /**
- * Burundi Food Price - Module de télémétrie & monitoring n8n
- * Envoie des signaux en temps réel vers le webhook n8n de manière asynchrone et résiliente.
+ * Burundi Food Price - Télémétrie n8n
+ * Actif en prod, Vercel et APK (pas seulement en local).
+ * Erreurs silencieuses : n8n down / CORB / offline ne cassent jamais l’UI.
  */
 
 const N8N_WEBHOOK_URL =
@@ -8,7 +9,6 @@ const N8N_WEBHOOK_URL =
     (import.meta as ImportMeta & { env?: { VITE_N8N_WEBHOOK_URL?: string } }).env?.VITE_N8N_WEBHOOK_URL?.trim()) ||
   "https://n8n-ajs5.onrender.com/webhook/bfp-events";
 
-// Durée minimale entre deux événements de page vue pour la même route (60 secondes)
 const PAGE_VIEW_THROTTLE_MS = 60 * 1000;
 let lastPageViewTime = 0;
 let lastPageViewPath = "";
@@ -22,11 +22,15 @@ export interface TelemetryEvent {
 }
 
 /**
- * Envoie un événement en arrière-plan sans bloquer l'interface ni lever d'exception.
- * Évite sendBeacon : Chrome logge souvent CORB sur la réponse JSON du webhook.
+ * Envoie un événement en arrière-plan partout (prod + app).
+ * Opt-out uniquement via VITE_DISABLE_TELEMETRY=1.
  */
 export async function trackEvent(event: TelemetryEvent): Promise<void> {
   try {
+    if (typeof import.meta !== "undefined" && import.meta.env?.VITE_DISABLE_TELEMETRY === "1") {
+      return;
+    }
+
     const payload = {
       ...event,
       timestamp: event.timestamp || new Date().toISOString(),
@@ -35,7 +39,6 @@ export async function trackEvent(event: TelemetryEvent): Promise<void> {
     };
 
     const body = JSON.stringify(payload);
-    // no-cors + text/plain : pas de preflight, réponse opaque (pas de bruit CORB lisible)
     void fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       mode: "no-cors",
@@ -46,13 +49,10 @@ export async function trackEvent(event: TelemetryEvent): Promise<void> {
       /* silencieux */
     });
   } catch {
-    // Catch global silencieux
+    /* silencieux */
   }
 }
 
-/**
- * Envoie les données d'une observation de prix synchronisée avec succès.
- */
 export function trackCollect(collectData: Record<string, unknown>): void {
   trackEvent({
     type: "collect",
@@ -66,9 +66,6 @@ export function trackCollect(collectData: Record<string, unknown>): void {
   });
 }
 
-/**
- * Envoie une trace de visite de page (avec étranglement à 1 appel max par minute par route).
- */
 export function trackPageView(path: string): void {
   const now = Date.now();
   if (path === lastPageViewPath && now - lastPageViewTime < PAGE_VIEW_THROTTLE_MS) {
@@ -86,7 +83,7 @@ export function trackPageView(path: string): void {
       userEmail = parsed?.user?.email;
     }
   } catch {
-    // Ignorer
+    /* ignore */
   }
 
   trackEvent({
@@ -97,9 +94,6 @@ export function trackPageView(path: string): void {
   });
 }
 
-/**
- * Envoie une trace lors d'une connexion utilisateur réussie.
- */
 export function trackLogin(userEmail: string, role?: string): void {
   trackEvent({
     type: "traffic",

@@ -1,29 +1,25 @@
 /**
  * Registre centralisé des images — Burundi Food Price
- * Les URLs Unsplash sont chargées directement par le navigateur.
- * Pour l'Android offline → fallback sur le gradient SVG local.
+ * Priorité prod/app : galerie Storage → Unsplash → SVG local (offline Android).
  */
 
 export const PRODUCT_IMAGES: Record<string, string> = {
-  "Riz local":         "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80",
-  "Maïs grain":        "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=600&q=80",
-  // Vraie céréale sorgho au lieu de pain
-  "Sorgho":            "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=600&q=80",
-  "Haricot jaune":     "https://images.unsplash.com/photo-1596797882870-8c33deeac224?auto=format&fit=crop&w=600&q=80",
-  "Petits pois secs":  "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80",
-  "Arachides":         "https://images.unsplash.com/photo-1567892328127-d0e5ea75d862?auto=format&fit=crop&w=600&q=80",
-  "Farine de manioc":  "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=600&q=80",
-  "Pomme de terre":    "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80",
-  "Patate douce":      "https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?auto=format&fit=crop&w=600&q=80",
-  "Banane plantain":   "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80",
-  "Tomates":           "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80",
-  "Oignons":           "https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=600&q=80",
-  "Huile de palme":    "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80",
-  // Vraie viande de bœuf étal de boucherie au lieu d'un disque vinyle
-  "Viande de bœuf":   "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=600&q=80",
-  "Ndagala séché":     "https://images.unsplash.com/photo-1534948216015-843149f72be3?auto=format&fit=crop&w=600&q=80",
-  // Vrai sucre blanc en poudre/morceaux au lieu d'une rose
-  "Sucre":             "https://images.unsplash.com/photo-1622484212850-cab596d63c5a?auto=format&fit=crop&w=600&q=80",
+  "Riz local": "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80",
+  "Maïs grain": "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=600&q=80",
+  Sorgho: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=600&q=80",
+  "Haricot jaune": "https://images.unsplash.com/photo-1596797882870-8c33deeac224?auto=format&fit=crop&w=600&q=80",
+  "Petits pois secs": "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80",
+  Arachides: "https://images.unsplash.com/photo-1567892328127-d0e5ea75d862?auto=format&fit=crop&w=600&q=80",
+  "Farine de manioc": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=600&q=80",
+  "Pomme de terre": "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80",
+  "Patate douce": "https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?auto=format&fit=crop&w=600&q=80",
+  "Banane plantain": "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80",
+  Tomates: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80",
+  Oignons: "https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=600&q=80",
+  "Huile de palme": "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80",
+  "Viande de bœuf": "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=600&q=80",
+  "Ndagala séché": "https://images.unsplash.com/photo-1534948216015-843149f72be3?auto=format&fit=crop&w=600&q=80",
+  Sucre: "https://images.unsplash.com/photo-1622484212850-cab596d63c5a?auto=format&fit=crop&w=600&q=80",
 };
 
 export interface MarketSlide {
@@ -34,21 +30,40 @@ export interface MarketSlide {
 }
 
 export const MARKET_IMAGES: Record<string, string> = {
-  "Marché Central de Bujumbura": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
-  "Marché de Cotebu":           "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
-  "Marché de Ruvumera":        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
-  "Marché de Kinama":          "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=80",
-  "Marché de Gitega":          "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
-  "Marché de Muramvya":        "https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=800&q=80",
-  "Marché de Ngozi":           "https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=800&q=80",
-  "Marché de Kayanza":         "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80",
-  "Marché de Kirundo":         "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
-  "Marché de Muyinga":         "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
-  "Marché de Ruyigi":          "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
-  "Marché de Cankuzo":         "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=80",
-  "Marché de Rumonge":         "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
-  "Marché de Makamba":         "https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=800&q=80",
-  "Marché de Bururi":          "https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=800&q=80",
+  "Marché Central de Bujumbura":
+    "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Cotebu":
+    "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ruvumera":
+    "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kinama":
+    "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Gitega":
+    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+  "Marché de Muramvya":
+    "https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ngozi":
+    "https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kayanza":
+    "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kirundo":
+    "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
+  "Marché de Muyinga":
+    "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ruyigi":
+    "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Cankuzo":
+    "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Rumonge":
+    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+  "Marché de Makamba":
+    "https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=800&q=80",
+  "Marché de Bururi":
+    "https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=800&q=80",
+  "Marché de Ngagara":
+    "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=800&q=80",
+  "Marché de Kamenge":
+    "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80",
 };
 
 export const MARKET_SLIDES: MarketSlide[] = [
@@ -85,25 +100,64 @@ export const MARKET_SLIDES: MarketSlide[] = [
 ];
 
 export function getMarketPhoto(marketName: string): string {
+  const trimmed = marketName.trim();
+  if (MARKET_IMAGES[trimmed]) return MARKET_IMAGES[trimmed];
   if (MARKET_IMAGES[marketName]) return MARKET_IMAGES[marketName];
-  // Fallback déterministe
   const keys = Object.keys(MARKET_IMAGES);
   let hash = 0;
-  for (let i = 0; i < marketName.length; i++) hash = (hash + marketName.charCodeAt(i)) % keys.length;
-  return MARKET_IMAGES[keys[hash]] || MARKET_SLIDES[0].image;
+  for (let i = 0; i < trimmed.length; i++) hash = (hash + trimmed.charCodeAt(i)) % keys.length;
+  return MARKET_IMAGES[keys[hash]] || MARKET_SLIDES[0]!.image;
 }
 
 /** Fallback SVG coloré si l'image ne charge pas (mode offline Android) */
 export function getProductFallback(name: string): string {
   const colors: Record<string, string> = {
-    "Riz local": "#e8d5a3", "Maïs grain": "#f5c518", "Sorgho": "#c8a060",
-    "Haricot jaune": "#d4a843", "Petits pois secs": "#7eb87e", "Arachides": "#c8956c",
-    "Farine de manioc": "#f0e6cc", "Pomme de terre": "#c4a97d", "Patate douce": "#e07b39",
-    "Banane plantain": "#f0d060", "Tomates": "#e8402a", "Oignons": "#c890c0",
-    "Huile de palme": "#e8a020", "Viande de bœuf": "#8b3a3a", "Ndagala séché": "#6090b0",
-    "Sucre": "#f8f0e0",
+    "Riz local": "#e8d5a3",
+    "Maïs grain": "#f5c518",
+    Sorgho: "#c8a060",
+    "Haricot jaune": "#d4a843",
+    "Haricot Kinure": "#c4a050",
+    "Haricot Kirundo": "#b89040",
+    "Haricot Gisoda": "#d4b060",
+    "Petits pois secs": "#7eb87e",
+    Arachides: "#c8956c",
+    "Farine de manioc": "#f0e6cc",
+    "Pomme de terre": "#c4a97d",
+    "Patate douce": "#e07b39",
+    "Banane plantain": "#f0d060",
+    Tomates: "#e8402a",
+    Oignons: "#c890c0",
+    "Huile de palme": "#e8a020",
+    "Viande de bœuf": "#8b3a3a",
+    "Ndagala séché": "#6090b0",
+    Sucre: "#f8f0e0",
+    "Riz Pakistan": "#e8d5a3",
+    "Riz Rutete": "#e0c890",
+    "Riz Tanzaniya": "#d8c080",
   };
   const bg = colors[name] ?? "#4caf50";
   const letter = name.charAt(0).toUpperCase();
   return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="${encodeURIComponent(bg)}"/><text x="200" y="170" font-size="100" font-family="sans-serif" text-anchor="middle" fill="white" opacity="0.7">${letter}</text></svg>`;
+}
+
+/**
+ * Image produit pour prod / web / Android :
+ * 1) photo galerie (Storage / localStorage)
+ * 2) Unsplash catalogue
+ * 3) SVG local
+ */
+export function getProductImage(name: string): string {
+  try {
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("bfp_photo_product");
+      if (raw) {
+        const map = JSON.parse(raw) as Record<string, string>;
+        const url = map[name];
+        if (url && (/^https?:\/\//i.test(url) || url.startsWith("data:"))) return url;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return PRODUCT_IMAGES[name] || getProductFallback(name);
 }

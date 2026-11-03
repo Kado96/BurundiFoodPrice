@@ -4,7 +4,7 @@
  */
 import { Link } from "@tanstack/react-router";
 import { TrendingDown, TrendingUp, Minus } from "lucide-react";
-import { PRODUCT_IMAGES, getProductFallback } from "@/lib/images";
+import { getProductImage, getProductFallback } from "@/lib/images";
 import { fbu } from "@/lib/data";
 
 interface ProductCard {
@@ -55,7 +55,7 @@ export function ProductPhotoGrid({ products, loading }: Props) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {products.map((p) => {
-        const imgUrl = PRODUCT_IMAGES[p.name];
+        const imgUrl = getProductImage(p.name);
         const fallback = getProductFallback(p.name);
         const deltaNum = typeof p.delta === "number" ? p.delta : parseFloat(String(p.delta ?? "").replace("%", "").replace("+", ""));
         const hasDelta = !isNaN(deltaNum) && isFinite(deltaNum);
